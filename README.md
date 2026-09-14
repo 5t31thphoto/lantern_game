@@ -1,32 +1,20 @@
-# Lantern — The Long Night
+# Lantern — The Long Night v9
 
-A cozy, local-first browser game designed for GitHub Pages and touch devices.
+A focused local-first ritual game built around making, lighting, and releasing paper lanterns.
 
-## Run
+## Runtime
+- Static HTML/CSS/JavaScript.
+- No CDN, account, backend, analytics, database, npm runtime, or downloaded dependency.
+- GitHub Pages compatible.
+- Save state uses localStorage.
+- Touch-first and responsive for Android tablets and Windows tablets.
+- Muse 2 is optional; the game remains complete without it.
 
-Open `index.html` locally or publish the folder as a static GitHub Pages site. No build step is required.
+## Core loop
+Wander → gather → build → write → decorate → light → release → watch the lantern rise → return to a growing personal sky → make another.
 
-## Rules
+## Therapeutic design
+The therapeutic content is embedded in the play loop rather than presented as counseling. The design emphasizes attention, returning when attention wanders, expression without forced disclosure, continuing bonds, meaning, connection, restoration, and gentle action. It does not diagnose, infer hidden memories, or treat grief severity as a score.
 
-- No backend, account, analytics, CDN, cloud save, runtime package, or external asset dependency.
-- Game state and notebook remain in browser `localStorage`.
-- Save export/import is local JSON.
-- Procedural creatures are generated as inline SVG from deterministic seeds.
-- Touch and pointer controls are the primary interaction model.
-- GitHub Actions is intentionally NOT included yet. If a future build pipeline becomes useful, put its YAML in the repository root and move it on GitHub to `.github/workflows/<name>.yml`.
-
-## Muse 2
-
-`muse.js` contains the optional Web Bluetooth bridge. The game remains fully playable without it. Browser Web Bluetooth support and Muse firmware behavior should be tested on the target Android/Windows hardware. Muse data is processed in-browser and is not uploaded anywhere.
-
-The game uses Muse for subtle feedback such as lantern glow/stability and meditation visualization. It does not interpret EEG as a diagnosis or an objective measure of emotion.
-
-## Design
-
-The visible game loop is:
-
-**wander → discover → gather → play → befriend → tend home → craft → unlock → return**
-
-The deeper layer quietly reinforces grounding, flexible attention, restoration, connection, meaning, care, and returning after attention wanders. It is not presented as a counseling session.
-
-For a real therapeutic deployment, this prototype still needs clinical review, accessibility testing, privacy review, and testing with intended players.
+## Deployment
+Upload the contents of this folder to a GitHub Pages repository and enable Pages. No build step is required.

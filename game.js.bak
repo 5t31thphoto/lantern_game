@@ -1,6 +1,6 @@
 (function(){'use strict';
 const KEY='lantern_long_night_v9';
-const fresh=()=>({light:0,day:1,coins:4,mat:{paper:3,bamboo:2,thread:2,wax:2,ink:1,herb:2},parts:{paper:false,frame:false,thread:false,wick:false,message:false,pattern:false},message:'',kind:'carry',pattern:'moon',color:'gold',flame:false,flights:[],friends:[],explored:[],scene:'home',fx:'',muse:{connected:false,quality:0,steadiness:.5}});
+const fresh=()=>({light:0,day:1,coins:4,mat:{paper:3,bamboo:2,thread:2,wax:2,ink:1,herb:2},parts:{paper:false,frame:false,thread:false,wick:false,message:false,pattern:false},message:'',kind:'carry',pattern:'moon',color:'gold',flame:false,flights:[],friends:[],explored:[],scene:'home',muse:{connected:false,quality:0,steadiness:.5}});
 let S=load(),toastTimer=null,fireflyTimer=null;
 function load(){try{return Object.assign(fresh(),JSON.parse(localStorage.getItem(KEY)||'{}'),{mat:Object.assign(fresh().mat,(JSON.parse(localStorage.getItem(KEY)||'{}').mat||{})),parts:Object.assign(fresh().parts,(JSON.parse(localStorage.getItem(KEY)||'{}').parts||{})),muse:Object.assign(fresh().muse,(JSON.parse(localStorage.getItem(KEY)||'{}').muse||{}))})}catch(e){return fresh()}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}} function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -13,38 +13,16 @@ function home(){return `<main><section class="hero"><div><p class="eyebrow">DAY 
 function lanternHTML(extra=''){return `<div class="lantern ${S.flame?'lit':''} ${extra}"><div class="top"></div><div class="body"></div><div class="frame"></div><div class="message">${esc(S.message)}</div><div class="flame"></div><div class="base"></div></div>`}
 function workshop(){
  const p=S.parts;
- const items=[['paper','📜','Paper'],['frame','🎋','Frame'],['thread','🧵','Thread'],['wick','🕯️','Wick'],['pattern','✦','Pattern'],['message','💌','Message']];
+ const items=[['paper','📜','Paper'],['frame','🎋','Frame'],['thread','🧵','Thread'],['wick','🕯️','Wick'],['message','💌','Message'],['pattern','✦','Pattern']];
  const cards=items.map(x=>`<button class="part ${p[x[0]]?'done':''}" onclick="partJump('${x[0]}')"><span>${p[x[0]]?'✓':x[1]}</span><b>${x[2]}</b></button>`).join('');
  const ready=allParts();
  const takeout=ready?`<button class="primary" onclick="nav('launch')">Take it to the field →</button>`:'';
- const stage=p.message?'message':p.pattern?'pattern':p.wick?'wick':p.thread?'thread':p.frame?'frame':p.paper?'paper':'start';
- const fx=S.fx?` fx-${S.fx}`:'';
- return shell('The Workshop','MAKE IT BY HAND',`<div class="two"><section class="panel"><div class="workshop-scene ${stage}${fx}" id="workshopScene">
-   <div class="stars"></div>
-   <div class="bench"></div>
-   <div class="paper-piece"></div>
-   <div class="bamboo-piece b1"></div><div class="bamboo-piece b2"></div><div class="bamboo-piece b3"></div>
-   <div class="thread-piece"></div><div class="wick-piece"></div>
-   <div class="paint-pattern pattern-${esc(S.pattern)}"></div>
-   ${lanternHTML()}
-   <div class="work-label">${ready?(S.flame?'Warm and ready.':'All the pieces are here.'):`${nextPartLabel()}`}</div>
- </div><div class="actions"><button class="primary" onclick="doPart()">${nextPartLabel()}</button><button class="ghost" onclick="nav('message')">💌 Message</button><button class="ghost" onclick="nav('wander')">🌿 Gather</button></div></section><aside class="panel"><h2>Tonight's lantern</h2><p class="muted">Click a piece to work on it. Every finished step changes the lantern on the table.</p><div class="craft">${cards}</div><p class="muted" style="margin-top:18px">${ready?'Everything is ready. Take it outside.':'A few small jobs, one little lantern.'}</p>${takeout}</aside></div>`);
+ return shell('The Workshop','MAKE IT BY HAND',`<div class="two"><section class="panel"><div class="scene"><div class="stars"></div>${lanternHTML()}</div><div class="actions"><button class="primary" onclick="doPart()">${nextPartLabel()}</button><button class="ghost" onclick="nav('message')">💌 Message</button><button class="ghost" onclick="nav('wander')">🌿 Gather</button></div></section><aside class="panel"><h2>Tonight's lantern</h2><p class="muted">Each piece is simple. The fun is making the thing exist.</p><div class="craft">${cards}</div><p class="muted" style="margin-top:18px">${ready?'Everything is ready. Take it outside.':'Build it piece by piece, then light it when it feels right.'}</p>${takeout}</aside></div>`);
 }
 function nextPartLabel(){if(!S.parts.paper)return'Fold the paper';if(!S.parts.frame)return'Shape the frame';if(!S.parts.thread)return'Tie the frame';if(!S.parts.wick)return'Set the wick';if(!S.parts.pattern)return'Choose a pattern';if(!S.parts.message)return'Write a message';return S.flame?'Take it outside →':'Light the lantern'}
 function allParts(){return Object.values(S.parts).every(Boolean)}
 function partJump(k){if(k==='message'){nav('message');return}if(k==='pattern'){choosePattern();return}doPart(k)}
-function doPart(force){
- let k=force||(!S.parts.paper?'paper':!S.parts.frame?'frame':!S.parts.thread?'thread':!S.parts.wick?'wick':!S.parts.pattern?'pattern':!S.parts.message?'message':!S.flame?'light':'launch');
- const cost={paper:['paper',1],frame:['bamboo',2],thread:['thread',1],wick:['wax',1],pattern:['ink',1]}[k];
- if(cost&&S.mat[cost[0]]<cost[1]){toast('You need more '+cost[0]+'. Try a little walk.');nav('wander');return}
- if(k==='message'){nav('message');return}
- if(k==='pattern'){choosePattern();return}
- if(k==='light'){S.flame=true;S.fx='light';S.light+=3;save();render();setTimeout(()=>{S.fx='';save();render()},900);return}
- if(k==='launch'){nav('launch');return}
- S.mat[cost[0]]-=cost[1];S.parts[k]=true;S.fx=k;S.light+=2;save();render();
- setTimeout(()=>{S.fx='';save();render()},900);
- toast({paper:'You fold the paper into a lantern body.',frame:'The bamboo frame snaps into place.',thread:'The thread wraps and the frame holds.',wick:'The wick settles in the center.',pattern:'The pattern blooms across the paper.'}[k]||'Done.');
-}
+function doPart(force){let k=force||(!S.parts.paper?'paper':!S.parts.frame?'frame':!S.parts.thread?'thread':!S.parts.wick?'wick':!S.parts.pattern?'pattern':!S.parts.message?'message':!S.flame?'light':'launch');const cost={paper:['paper',1],frame:['bamboo',2],thread:['thread',1],wick:['wax',1],pattern:['ink',1]}[k];if(cost&&S.mat[cost[0]]<cost[1]){toast('You need more '+cost[0]+'. Try a little walk.');nav('wander');return}if(k==='message'){nav('message');return}if(k==='pattern'){choosePattern();return}if(k==='light'){S.flame=true;S.light+=3;save();toast('The wick catches.');render();return}if(k==='launch'){nav('launch');return}S.mat[cost[0]]-=cost[1];S.parts[k]=true;S.light+=2;save();toast({paper:'The paper is folded.',frame:'The frame fits.',thread:'The knots hold.',wick:'The wick is set.'}[k]||'Done.');render()}
 function choosePattern(){const opts=['moon','stars','waves','leaves'];const labels={moon:'☾',stars:'✦ ✧',waves:'〰〰',leaves:'❧ ❧'};const colors=['gold','rose','mint','sky'];document.getElementById('app').innerHTML=hud()+shell('Choose its face','A LITTLE PERSONALITY',`<section class="panel"><div class="choice-grid">${opts.map(o=>`<button class="choice ${S.pattern===o?'selected':''}" onclick="setPattern('${o}')"><strong style="font-size:30px">${labels[o]}</strong><small>${o}</small></button>`).join('')}</div><div class="actions">${colors.map(c=>`<button class="choice ${S.color===c?'selected':''}" style="min-height:auto" onclick="setColor('${c}')">● ${c}</button>`).join('')}</div><button class="primary" onclick="nav('workshop')">Keep it →</button></section>`)}
 function setPattern(x){S.pattern=x;S.parts.pattern=true;save();render()}function setColor(x){S.color=x;save();render()}
 function message(){return shell('Give it a few words','NOTHING PERFECT REQUIRED',`<section class="panel"><p class="lead">A name. A thank-you. A wish. Something to carry. Something you don't want to hold tonight. Or one completely ordinary word.</p><div class="choice-grid">${[['carry','🌱','Carry','something worth keeping alive'],['thank','💛','Thank','something worth honoring'],['setdown','🍂','Set down','something you can leave here for tonight'],['wish','🌟','Wish','something you hope finds its way forward']].map(x=>`<button class="choice ${S.kind===x[0]?'selected':''}" onclick="S.kind='${x[0]}';render()"><strong>${x[1]} ${x[2]}</strong><small>${x[3]}</small></button>`).join('')}</div><textarea id="msg" maxlength="180" placeholder="Write as much or as little as you want…">${esc(S.message)}</textarea><div class="actions"><button class="ghost" onclick="nav('workshop')">Back</button><button class="primary" onclick="saveMessage()">Fold it inside →</button></div></section>`)}

@@ -30,7 +30,3 @@ The visible game loop is:
 The deeper layer quietly reinforces grounding, flexible attention, restoration, connection, meaning, care, and returning after attention wanders. It is not presented as a counseling session.
 
 For a real therapeutic deployment, this prototype still needs clinical review, accessibility testing, privacy review, and testing with intended players.
-
-
-## v10 repair
-This build deliberately starts from the v5 renderer and preserves `index.html`, `ui.js`, and the original CSS renderer architecture. The lantern workshop and sky are additive screens/components inside the existing v5 UI. No replacement `#app` renderer is used.

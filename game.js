@@ -6,7 +6,7 @@ const rand=(seed)=>{let h=2166136261; for(const c of seed){h^=c.charCodeAt(0);h=
 const pick=(r,a)=>a[Math.floor(r()*a.length)];
 const defaults=()=>({version:5,day:1,lastDate:'',streak:0,light:12,coins:24,energy:5,maxEnergy:5,weather:0,inventory:{wood:4,stone:3,herb:2,seed:3,thread:1,star:0,berry:2,tea:1,fish:0},home:{garden:0,lantern:0,bench:0,pond:0,plants:[],decor:[],clean:3},friends:[],discoveries:[],journal:[],quests:{},skills:{ground:0,flex:0,connect:0,meaning:0,care:0,restore:0},stats:{wander:0,harvest:0,craft:0,play:0,friend:0,days:1,calmSessions:0},settings:{sound:false,motion:true,voice:false},lantern:{paper:3,bamboo:3,thread:2,wax:2,ink:2,step:0,pattern:'moon',color:'gold',message:'',lit:false,flights:0,lastLaunch:null,messages:[]},muse:{connected:false,quality:0,steadiness:0,motion:0,alpha:0,beta:0,battery:null,last:0}});
 let S=load();
-function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(!x||x.version!==5)return defaults();if(!x.lantern)x.lantern=defaults().lantern;return x}catch{return defaults()}}
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&x.version===5){if(!x.lantern)x.lantern=defaults().lantern;return x}return defaults()}catch{return defaults()}}
 function save(){localStorage.setItem(KEY,JSON.stringify(S))}
 function today(){return new Date().toISOString().slice(0,10)}
 function boot(){const d=today();if(S.lastDate!==d){if(S.lastDate){const gap=Math.floor((Date.now()-new Date(S.lastDate))/86400000);S.streak=gap<=1?S.streak+1:1}else S.streak=1;S.lastDate=d;S.day++;S.energy=S.maxEnergy;S.weather=(S.day*7)%5;dailyQuest();save()}}
@@ -57,32 +57,23 @@ if(thing==='sit'){gain(1,0,'ground');return{msg:'You sit. Nothing is required of
 }
 function craft(item){const recipes={tea:{cost:{herb:1,berry:1},out:{tea:1},msg:'A fragrant cup of berry tea.'},lanternCharm:{cost:{thread:1,star:1},out:{decor:1},msg:'A tiny star charm for the lantern.'},seedPacket:{cost:{berry:1,herb:1},out:{seed:3},msg:'Three saved seeds for another day.'},stoneBench:{cost:{stone:3,wood:2},out:{bench:1},msg:'A sturdy little bench.'}};const rec=recipes[item];if(!rec||!spendCost(rec.cost))return{error:'Not enough materials.'};for(const [k,v] of Object.entries(rec.out)){if(k==='decor')S.home.decor.push('star');else if(k==='bench')S.home.bench++;else S.inventory[k]=(S.inventory[k]||0)+v}S.stats.craft++;gain(5,3,'care');touchQuest('craft');return{msg:rec.msg}}
 function harvest(){const ready=S.home.plants.filter(p=>p.stage>=3);if(!ready.length)return{error:'Nothing is ready yet.'};S.home.plants=S.home.plants.filter(p=>p.stage<3);S.inventory.berry+=ready.length;S.inventory.seed+=ready.length;gain(4,3,'meaning');return{msg:`You harvest ${ready.length} little bundle${ready.length>1?'s':''} of berries and seeds.`}}
-// Lantern workshop — deliberately additive to the v5 game model.
+
 const lanternSteps=[
-{id:'fold',label:'Fold the paper',material:'paper',need:'paper',desc:'Make the first careful folds. The shape starts to remember what it wants to become.'},
-{id:'frame',label:'Shape the frame',material:'bamboo',need:'bamboo',desc:'Bend the little frame into a light, open shape.'},
-{id:'tie',label:'Tie it together',material:'thread',need:'thread',desc:'A few small knots hold everything together.'},
-{id:'wick',label:'Set the wick',material:'wax',need:'wax',desc:'Give the flame somewhere safe to live.'},
+{id:'fold',label:'Fold the paper',material:'paper',need:'paper',desc:'Make the paper into the body of the lantern.'},
+{id:'frame',label:'Shape the bamboo frame',material:'bamboo',need:'bamboo',desc:'A light frame gives the paper somewhere to breathe.'},
+{id:'tie',label:'Tie the frame',material:'thread',need:'thread',desc:'Small knots hold the shape together.'},
+{id:'wick',label:'Set the wick',material:'wax',need:'wax',desc:'Prepare the little source of warmth.'},
 {id:'paint',label:'Choose a pattern',material:'ink',need:'ink',desc:'Add a small mark that makes this lantern yours.'},
-{id:'message',label:'Write a message',material:null,need:null,desc:'A few words for the sky. They can be about a person, a feeling, a wish, or nothing in particular.'},
+{id:'message',label:'Write a message',material:null,need:null,desc:'Put a few words inside. They can be simple.'},
 {id:'light',label:'Light the lantern',material:null,need:null,desc:'When it is ready, give it a little light.'}
 ];
-const lanternMessages=[
-'I remember you.',
-'Thank you for being here.',
-'I will carry this with me.',
-'You mattered. You still matter.',
-'For the things I want to keep.',
-'For tonight, this is enough.',
-'I can miss you and keep going.',
-'Wherever the night takes this, let it be gentle.'
-];
+const lanternMessages=['I miss you.','Thank you for being here.','I am still carrying you.','I will keep going.','I remember the good things.','Tonight I am allowed to rest.','I do not have to solve everything tonight.','For whoever needs a little light.'];
 function lanternState(){if(!S.lantern)S.lantern=defaults().lantern;return S.lantern}
 function lanternStep(id){const L=lanternState(),idx=lanternSteps.findIndex(x=>x.id===id);if(idx!==L.step)return{error:'Finish the current step first.'};const st=lanternSteps[idx];if(st.material){if((L[st.need]||0)<1)return{error:`You need one more ${st.need}.`};L[st.need]--;L.step++;save();return{ok:true,msg:idx===0?'The paper takes shape.':idx===1?'The frame is light and springy.':idx===2?'The knots hold.':idx===3?'The wick is ready.':'The pattern gives the paper a little personality.'}}if(id==='message'){if(!L.message.trim())return{error:'Write a message first.'};L.step++;save();return{ok:true,msg:'The words are tucked inside.'}}if(id==='light'){if(!L.message.trim())return{error:'Write a message before lighting it.'};L.lit=true;L.step=lanternSteps.length;save();return{ok:true,msg:'The lantern glows. It is ready for the sky.'}}return{error:'That step is not available.'}}
-function lanternSetPattern(pattern,color){const L=lanternState();L.pattern=['moon','stars','leaves','dots'].includes(pattern)?pattern:'moon';L.color=['gold','mint','plum','silver'].includes(color)?color:'gold';save();return true}
-function lanternSetMessage(text){const L=lanternState();L.message=String(text||'').slice(0,240);save();return L.message}
+function lanternSetPattern(pattern,color){const L=lanternState();L.pattern=['moon','stars','leaves','dots'].includes(pattern)?pattern:'moon';L.color=['gold','mint','plum','silver'].includes(color)?color:'gold';save()}
+function lanternSetMessage(text){const L=lanternState();L.message=String(text||'').slice(0,240);save()}
 function launchLantern(){const L=lanternState();if(L.step<lanternSteps.length||!L.lit)return{error:'Finish and light the lantern first.'};const msg=L.message.trim();if(!msg)return{error:'The lantern needs a message.'};L.flights++;L.lastLaunch={t:Date.now(),message:msg,pattern:L.pattern,color:L.color,flight:L.flights};L.messages.unshift(L.lastLaunch);L.messages=L.messages.slice(0,30);L.message='';L.lit=false;L.step=0;L.paper=Math.min(3,L.paper+1);L.bamboo=Math.min(3,L.bamboo+1);L.thread=Math.min(2,L.thread+1);L.wax=Math.min(2,L.wax+1);L.ink=Math.min(2,L.ink+1);S.light+=12;S.coins+=4;S.skills.meaning=(S.skills.meaning||0)+1;save();return{ok:true,flight:L.lastLaunch}}
-function lanternGather(){const L=lanternState();const found=['paper','bamboo','thread','wax','ink'];const idx=(S.stats.wander+S.day+L.flights)%found.length;const item=found[idx];const cap={paper:3,bamboo:3,thread:2,wax:2,ink:2}[item];L[item]=Math.min(cap,L[item]+1);save();return{item,qty:1}}
+function lanternGather(){const L=lanternState(),found=['paper','bamboo','thread','wax','ink'],idx=(S.stats.wander+S.day+L.flights)%found.length,item=found[idx],cap={paper:3,bamboo:3,thread:2,wax:2,ink:2}[item];L[item]=Math.min(cap,L[item]+1);save();return{item}}
 
 function reset(){S=defaults();save()}
 function exportSave(){return JSON.stringify(S,null,2)}

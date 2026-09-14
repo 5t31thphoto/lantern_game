@@ -1,61 +1,32 @@
 # Lantern — The Long Night
 
-A self-contained, local-first browser game. Designed for GitHub Pages and touch devices.
+A local-first, game-first therapeutic game prototype designed for GitHub Pages.
 
-## Rules of the project
+## Runtime rules
 
-- Static HTML/CSS/JavaScript only.
-- No backend, account, cloud database, analytics, CDN, external fonts, or runtime network dependency.
-- Progress and notebook data stay in browser localStorage unless the player explicitly exports a save.
-- The game remains fully playable without optional hardware.
-- Therapeutic ideas are delivered through game mechanics rather than a counseling interface.
-- No diagnosis, grief score, recovered-memory mechanic, or interpretation of EEG as emotional truth.
+- Static HTML/CSS/JavaScript at runtime.
+- No runtime API, account, database, CDN, analytics, cloud save, or remote service.
+- Progress and notebook entries remain in browser storage unless the player explicitly exports a save.
+- Procedural creature sprites are generated in the browser from deterministic seeds.
+- Muse 2 connects directly from supported browsers through Web Bluetooth. EEG, movement and battery data are processed locally in the page.
+- The game remains completely playable without Muse.
 
-## Muse 2 — now implemented
+## Muse 2
 
-Lantern includes a dependency-free Web Bluetooth Muse 2 adapter in `muse.js`.
+The Muse layer is deliberately an interaction layer, not a diagnostic system. Signal quality, movement and a conservative steadiness trend can influence visual feedback and the guided Lantern Meditation. The game never presents EEG as a measurement of grief, mental health, or a diagnosis.
 
-It connects directly to the Muse BLE service, subscribes to the four primary EEG channels plus accelerometer/gyroscope and battery notifications, decodes the incoming packets locally, and derives conservative interaction signals:
+The browser path is intended for HTTPS GitHub Pages with Chrome/Edge on Android or Windows. Web Bluetooth is not available in Safari/iOS.
 
-- signal quality
-- steadiness
-- movement/artifact level
-- alpha and beta band-power estimates
-- battery level
+## Lantern Meditation
 
-These are **game inputs**, not medical or psychological measurements.
+The dedicated meditation page provides 3/5/10/20 minute sessions. It can run timer-only or with Muse feedback. The lantern responds subtly to the live signal; optional spoken guidance uses the browser's local Speech Synthesis API, and the background tone is generated locally with Web Audio.
 
-### Browser requirements
+## GitHub Actions
 
-Direct browser BLE requires a Web Bluetooth-capable browser and a secure context (HTTPS or localhost). Chrome/Edge on Android and Windows are the primary targets. Safari/iOS does not provide the required Web Bluetooth API.
+The repository includes `.github/workflows/deploy.yml`. CI validates the JavaScript and assembles the static site before deploying it through GitHub Pages. Build-time tooling may be installed by GitHub's runner; the published runtime remains self-contained.
 
-Therefore:
+GitHub Pages supports public repositories on GitHub Free and supports custom GitHub Actions workflows for building/deploying static sites.
 
-- `file:///.../index.html` → the game works, but direct Muse BLE cannot be expected to work.
-- GitHub Pages `https://...` → the game and Muse connection are intended to work in a supported browser.
-- No Muse → the entire game still works.
+## Important boundary
 
-### Connecting
-
-1. Turn on the Muse 2.
-2. Open the Lantern GitHub Pages site in Chrome or Edge.
-3. Open **More → Muse 2**.
-4. Tap **Connect Muse 2**.
-5. Choose the Muse device in the browser Bluetooth picker.
-6. Keep the headband fitted so its electrodes contact the skin.
-
-The browser owns the Bluetooth permission. Lantern does not scan or upload anything outside the page.
-
-## Why the bridge is conservative
-
-The game deliberately does not label EEG bands as calmness, sadness, trauma, healing, or other psychological states. Consumer EEG is noisy and affected by movement and electrode contact. Lantern uses quality and signal-derived trends only as optional interaction signals.
-
-## Files
-
-- `index.html` — entry point
-- `style.css` — visual/UI layer
-- `game.js` — local game state and mechanics
-- `ui.js` — screens, mini-games, creatures, Muse controls
-- `muse.js` — local Muse 2 Web Bluetooth adapter
-
-No build step is required.
+This is a game prototype, not clinically validated treatment. It deliberately avoids diagnosis, recovered-memory mechanics, autonomous trauma exposure, or interpreting EEG as an emotional truth. Before real therapeutic deployment, clinician review, accessibility testing, privacy review, safety/escalation design, and testing with intended users are required.

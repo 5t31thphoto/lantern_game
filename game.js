@@ -1,7 +1,7 @@
 /* Lantern 2 — local-first game engine. No network, no dependencies. */
 const Lantern=(()=>{
 const KEY='lanternGameV3';
-const defaults=()=>({version:3,light:0,coins:12,streak:0,lastDay:'',world:0,skill:{ground:0,flex:0,connect:0,meaning:0,care:0},inventory:[],friends:[],seen:[],journal:[],settings:{motion:true,sound:false,muse:false},muse:{connected:false,quality:0,attention:0,steadiness:0,motion:0,alpha:0,beta:0,battery:null,last:0},stats:{plays:0,returnWins:0,explore:0,kind:0}});
+const defaults=()=>({version:3,light:0,coins:12,streak:0,lastDay:'',world:0,skill:{ground:0,flex:0,connect:0,meaning:0,care:0},inventory:[],friends:[],seen:[],journal:[],settings:{motion:true,sound:false,voice:false,muse:false},muse:{connected:false,quality:0,attention:0,steadiness:0,motion:0,alpha:0,beta:0,battery:null,last:0,sessionSeconds:0},stats:{plays:0,returnWins:0,explore:0,kind:0}});
 let S=load();
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY));return x&&x.version===3?x:defaults()}catch(e){return defaults()}}
 function save(){localStorage.setItem(KEY,JSON.stringify(S));}
@@ -34,7 +34,7 @@ function explore(){S.stats.explore++;const c=creature(Date.now().toString()+Math
 function journal(text){if(!text.trim())return false;S.journal.unshift({t:Date.now(),text:text.trim()});S.journal=S.journal.slice(0,60);save();return true}
 function exportSave(){return JSON.stringify(S,null,2)}
 function importSave(text){try{let x=JSON.parse(text);if(x.version!==3)throw Error();S=x;save();return true}catch(e){return false}}
-function museFrame(x){S.muse.quality=Math.max(0,Math.min(1,x.quality??0));S.muse.attention=Math.max(0,Math.min(1,x.attention??0));S.muse.steadiness=Math.max(0,Math.min(1,x.steadiness??0));S.muse.motion=Math.max(0,Math.min(1,x.motion??0));S.muse.alpha=Number(x.band?.alpha||0);S.muse.beta=Number(x.band?.beta||0);S.muse.battery=x.battery??S.muse.battery;S.muse.last=Date.now()}
+function museFrame(x){S.muse.quality=Math.max(0,Math.min(1,x.quality??0));S.muse.attention=Math.max(0,Math.min(1,x.attention??0));S.muse.steadiness=Math.max(0,Math.min(1,x.steadiness??0));S.muse.motion=Math.max(0,Math.min(1,x.motion??0));S.muse.alpha=Number(x.band?.alpha||0);S.muse.beta=Number(x.band?.beta||0);S.muse.battery=x.battery??S.muse.battery;S.muse.last=Date.now();S.muse.last=S.muse.last}
 function start(){boot();S.stats.plays++;save()}
 return {S,rooms,games,creature,reward,unlockIf,explore,journal,exportSave,importSave,museFrame,save,start,KEY};
 })();

@@ -16,20 +16,34 @@ function workshop(){
  const items=[['paper','📜','Paper'],['frame','🎋','Frame'],['thread','🧵','Thread'],['wick','🕯️','Wick'],['pattern','✦','Pattern'],['message','💌','Message']];
  const cards=items.map(x=>`<button class="part ${p[x[0]]?'done':''}" onclick="partJump('${x[0]}')"><span>${p[x[0]]?'✓':x[1]}</span><b>${x[2]}</b></button>`).join('');
  const ready=allParts();
- const takeout=ready?`<button class="primary" onclick="nav('launch')">Take it to the field →</button>`:'';
  const stage=p.message?'message':p.pattern?'pattern':p.wick?'wick':p.thread?'thread':p.frame?'frame':p.paper?'paper':'start';
  const fx=S.fx?` fx-${S.fx}`:'';
  return shell('The Workshop','MAKE IT BY HAND',`<div class="two"><section class="panel"><div class="workshop-scene ${stage}${fx}" id="workshopScene">
-   <div class="stars"></div>
-   <div class="bench"></div>
-   <div class="paper-piece"></div>
-   <div class="bamboo-piece b1"></div><div class="bamboo-piece b2"></div><div class="bamboo-piece b3"></div>
-   <div class="thread-piece"></div><div class="wick-piece"></div>
-   <div class="paint-pattern pattern-${esc(S.pattern)}"></div>
-   ${lanternHTML()}
+   <div class="stars"></div><div class="bench"></div>
+   <div class="paper-piece"></div><div class="bamboo-piece b1"></div><div class="bamboo-piece b2"></div><div class="bamboo-piece b3"></div>
+   <div class="thread-piece"></div><div class="wick-piece"></div><div class="paint-pattern pattern-${esc(S.pattern)}"></div>${lanternHTML()}
    <div class="work-label">${ready?(S.flame?'Warm and ready.':'All the pieces are here.'):`${nextPartLabel()}`}</div>
- </div><div class="actions"><button class="primary" onclick="doPart()">${nextPartLabel()}</button><button class="ghost" onclick="nav('message')">💌 Message</button><button class="ghost" onclick="nav('wander')">🌿 Gather</button></div></section><aside class="panel"><h2>Tonight's lantern</h2><p class="muted">Click a piece to work on it. Every finished step changes the lantern on the table.</p><div class="craft">${cards}</div><p class="muted" style="margin-top:18px">${ready?'Everything is ready. Take it outside.':'A few small jobs, one little lantern.'}</p>${takeout}</aside></div>`);
+ </div>
+ <div class="workplay" id="workplay">${workChallenge(stage)}</div>
+ <div class="actions"><button class="ghost" onclick="nav('message')">💌 Message</button><button class="ghost" onclick="nav('wander')">🌿 Gather</button></div></section>
+ <aside class="panel"><h2>Tonight's lantern</h2><p class="muted">This isn't a checklist. Each little action changes what is on the table.</p><div class="craft">${cards}</div><p class="muted" style="margin-top:18px">${ready?'Everything is ready. Take it outside.':'Touch the object in the work area to do the next little job.'}</p>${ready?`<button class="primary" onclick="nav('launch')">Take it to the field →</button>`:''}</aside></div>`);
 }
+function workChallenge(stage){
+ if(stage==='start')return `<h3>Start with the paper</h3><p>Tap the sheet to make the first fold.</p><div class="playfield"><div class="fold-sheet" onclick="playFold(this)"></div></div>`;
+ if(stage==='paper')return `<h3>Fold the paper</h3><p>One clean fold. Watch the flat sheet become the beginning of a lantern.</p><div class="playfield"><div class="fold-sheet" onclick="playFold(this)"></div><div class="work-success"><span>Folded.</span></div></div>`;
+ if(stage==='frame')return `<h3>Build the frame</h3><p>Put the three bamboo pieces into place.</p><div class="playfield"><div class="frame-piece a" onclick="placeFrame(this)"></div><div class="frame-piece b" onclick="placeFrame(this)"></div><div class="frame-piece c" onclick="placeFrame(this)"></div><div class="work-success"><span>It holds.</span></div></div>`;
+ if(stage==='thread')return `<h3>Tie it together</h3><p>Catch the loose loop and pull it snug.</p><div class="playfield"><div class="thread-loop" onclick="wrapThread(this)"></div><div class="work-success"><span>Nice and tight.</span></div></div>`;
+ if(stage==='wick')return `<h3>Set the wick</h3><p>Tap the wick to seat it in the lantern.</p><div class="playfield"><div class="wick-target" onclick="placeWick(this)"></div><div class="work-success"><span>Centered.</span></div></div>`;
+ if(stage==='pattern')return `<h3>Give it a face</h3><p>Pick one. The finished lantern keeps it.</p><div class="choice-grid" style="grid-template-columns:repeat(4,1fr)">${['moon','stars','waves','leaves'].map(o=>`<button class="choice" onclick="setPattern('${o}')"><strong>${({moon:'☾',stars:'✦',waves:'〰',leaves:'❧'})[o]}</strong><small>${o}</small></button>`).join('')}</div>`;
+ if(stage==='message')return `<h3>Put something inside</h3><p>A few words are enough.</p><button class="primary" onclick="nav('message')">Open the message card →</button>`;
+ return `<h3>Light it</h3><p>When you're ready, touch the spark.</p><div class="playfield"><div class="spark" onclick="igniteWorkshop(this)">✦</div><div class="work-success"><span>The lantern is glowing.</span></div></div>`;
+}
+function finishWorkshopPart(k,el){S.parts[k]=true;S.fx=k;S.light+=2;save();if(el){const ok=el.parentElement.querySelector('.work-success');if(ok)ok.classList.add('show')}setTimeout(()=>{S.fx='';save();render()},700)}
+function playFold(el){if(S.parts.paper)return;el.classList.add('folded');finishWorkshopPart('paper',el)}
+function placeFrame(el){if(el.classList.contains('set'))return;el.classList.add('set');const box=el.parentElement;if([...box.querySelectorAll('.frame-piece')].every(x=>x.classList.contains('set')))finishWorkshopPart('frame',el)}
+function wrapThread(el){if(S.parts.thread)return;el.classList.add('wrapped');finishWorkshopPart('thread',el)}
+function placeWick(el){if(S.parts.wick)return;el.classList.add('placed');finishWorkshopPart('wick',el)}
+function igniteWorkshop(el){if(S.flame)return;el.classList.add('lit');S.flame=true;S.fx='light';S.light+=3;save();const ok=el.parentElement.querySelector('.work-success');if(ok)ok.classList.add('show');setTimeout(()=>{S.fx='';save();render()},850)}
 function nextPartLabel(){if(!S.parts.paper)return'Fold the paper';if(!S.parts.frame)return'Shape the frame';if(!S.parts.thread)return'Tie the frame';if(!S.parts.wick)return'Set the wick';if(!S.parts.pattern)return'Choose a pattern';if(!S.parts.message)return'Write a message';return S.flame?'Take it outside →':'Light the lantern'}
 function allParts(){return Object.values(S.parts).every(Boolean)}
 function partJump(k){if(k==='message'){nav('message');return}if(k==='pattern'){choosePattern();return}doPart(k)}
@@ -63,7 +77,7 @@ function quiet(){return shell('Quiet Flight','MUSE 2 · OPTIONAL',`<section clas
 function startQuiet(){let t=300;document.getElementById('app').innerHTML=hud()+shell('Quiet Flight','THE LANTERN IS HERE',`<section class="panel zen"><div class="orb">${lanternHTML('lit')}</div><h2 id="qt">5:00</h2><p id="qx" class="lead">Notice the light. If attention wanders, let it come back.</p><button class="ghost" onclick="nav('home')">Leave quietly</button></section>`);const tm=setInterval(()=>{t--;const q=document.getElementById('qt'),x=document.getElementById('qx');if(!q){clearInterval(tm);return}q.textContent=Math.floor(t/60)+':'+String(t%60).padStart(2,'0');if(t<200)x.textContent='There is nothing to fix. Let the lantern drift.';if(t<80)x.textContent='The sky is still here. You can come back whenever you want.';if(t<=0){clearInterval(tm);q.textContent='The lantern is still here.'}},1000)}
 function connectMuse(){S.muse.connected=!S.muse.connected;S.muse.quality=S.muse.connected?.85:0;save();toast(S.muse.connected?'Muse is ready for feedback.':'Muse disconnected.');nav('quiet')}
 function bind(){}
-globalThis.nav=nav;globalThis.S=S;globalThis.render=render;globalThis.doPart=doPart;globalThis.partJump=partJump;globalThis.setPattern=setPattern;globalThis.setColor=setColor;globalThis.saveMessage=saveMessage;globalThis.gather=gather;globalThis.encounter=encounter;globalThis.release=release;globalThis.fireflies=fireflies;globalThis.tending=tending;globalThis.patternMemory=patternMemory;globalThis.startQuiet=startQuiet;globalThis.connectMuse=connectMuse;
+globalThis.nav=nav;globalThis.S=S;globalThis.render=render;globalThis.doPart=doPart;globalThis.partJump=partJump;globalThis.setPattern=setPattern;globalThis.setColor=setColor;globalThis.saveMessage=saveMessage;globalThis.gather=gather;globalThis.encounter=encounter;globalThis.release=release;globalThis.fireflies=fireflies;globalThis.tending=tending;globalThis.patternMemory=patternMemory;globalThis.startQuiet=startQuiet;globalThis.connectMuse=connectMuse;globalThis.playFold=playFold;globalThis.placeFrame=placeFrame;globalThis.wrapThread=wrapThread;globalThis.placeWick=placeWick;globalThis.igniteWorkshop=igniteWorkshop;
 function boot(){try{render()}catch(err){console.error('Lantern boot failed:',err);const app=document.getElementById('app');if(app)app.innerHTML=`<header class="bar"><div class="brand">🏮 <strong>Lantern</strong><span>The Long Night</span></div><div id="hud">✦ ${S.light} · 🪙 ${S.coins}</div></header><main><section class="hero"><div><p class="eyebrow">A LITTLE NIGHT RITUAL</p><h1>Make something beautiful.<br>Send it into the sky.</h1><p class="lead">The night is still here. Start with a little paper lantern.</p><button class="primary" onclick="globalThis.nav('workshop')">🏮 Start making</button></div><div class="hero-sky"><div class="moon"></div><div class="distant-lights"></div><div class="hill"></div></div></section></main>`}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();

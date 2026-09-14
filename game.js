@@ -1,129 +1,94 @@
-(() => {
-'use strict';
-const KEY='lanternLongNightV7';
-const seed0=Date.now()%2147483647;
+/* Lantern — The Long Night v5. Local-first game state. No network/runtime deps. */
+const Lantern=(()=>{
+const KEY='lanternGameV5';
+const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const rand=(seed)=>{let h=2166136261; for(const c of seed){h^=c.charCodeAt(0);h=Math.imul(h,16777619)} return ()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}};
+const pick=(r,a)=>a[Math.floor(r()*a.length)];
+const defaults=()=>({version:5,day:1,lastDate:'',streak:0,light:12,coins:24,energy:5,maxEnergy:5,weather:0,inventory:{wood:4,stone:3,herb:2,seed:3,thread:1,star:0,berry:2,tea:1,fish:0},home:{garden:0,lantern:0,bench:0,pond:0,plants:[],decor:[],clean:3},friends:[],discoveries:[],journal:[],quests:{},skills:{ground:0,flex:0,connect:0,meaning:0,care:0,restore:0},stats:{wander:0,harvest:0,craft:0,play:0,friend:0,days:1,calmSessions:0},settings:{sound:false,motion:true,voice:false},lantern:{paper:3,bamboo:3,thread:2,wax:2,ink:2,step:0,pattern:'moon',color:'gold',message:'',lit:false,flights:0,lastLaunch:null,messages:[]},muse:{connected:false,quality:0,steadiness:0,motion:0,alpha:0,beta:0,battery:null,last:0}});
 let S=load();
-let toastTimer;
-const app=document.getElementById('app');
-
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(!x||x.version!==5)return defaults();if(!x.lantern)x.lantern=defaults().lantern;return x}catch{return defaults()}}
+function save(){localStorage.setItem(KEY,JSON.stringify(S))}
+function today(){return new Date().toISOString().slice(0,10)}
+function boot(){const d=today();if(S.lastDate!==d){if(S.lastDate){const gap=Math.floor((Date.now()-new Date(S.lastDate))/86400000);S.streak=gap<=1?S.streak+1:1}else S.streak=1;S.lastDate=d;S.day++;S.energy=S.maxEnergy;S.weather=(S.day*7)%5;dailyQuest();save()}}
+function dailyQuest(){const q=[['wander','Take a walk',2],['tend','Tend two things',2],['friend','Spend time with a friend',2],['craft','Make something',2],['play','Play a little game',2]][(S.day-1)%5];S.quests.daily={id:q[0],label:q[1],goal:q[2],done:0,reward:6}}
 const areas=[
- {id:'workshop',name:'Lantern Workshop',icon:'🏮',desc:'Your little workshop sits beneath the old cedar. Paper, bamboo, thread, and warm light fill the room.',need:0},
- {id:'meadow',name:'Firefly Meadow',icon:'✦',desc:'A soft field where paper, herbs, and curious friends turn up after dusk.',need:0},
- {id:'grove',name:'Bamboo Grove',icon:'🎋',desc:'Tall green stalks sway overhead. Good frame material grows here.',need:4},
- {id:'pond',name:'Moonpond',icon:'◌',desc:'A quiet pond with reeds, fish, lilies, and things that only appear when you stop rushing.',need:8},
- {id:'hill',name:'Dawn Hill',icon:'☼',desc:'The highest place. From here, every lantern becomes a star.',need:14}
+{id:'home',name:'Your Little House',need:0,kind:'home',desc:'A warm corner of the world. Tend it, decorate it, or simply sit with the lantern.'},
+{id:'mosswood',name:'Mosswood',need:0,kind:'wild',desc:'Soft paths, mushrooms, fireflies and creatures with excellent hiding places.'},
+{id:'moonpond',name:'Moonpond',need:35,kind:'water',desc:'A silver pond with fish, stepping stones and small games.'},
+{id:'nightmarket',name:'Night Market',need:70,kind:'market',desc:'Tiny stalls, odd trades, recipes and friends looking for something.'},
+{id:'echo',name:'Echo Forest',need:115,kind:'echo',desc:'The forest remembers sounds. Follow an echo, sort a thought, or simply listen.'},
+{id:'garden',name:'Keepsake Garden',need:165,kind:'garden',desc:'Plant what you want to keep alive: a value, a memory, a recipe, a joke.'},
+{id:'dawnhill',name:'Dawn Hill',need:230,kind:'summit',desc:'A quiet overlook. Nothing here needs fixing.'}
 ];
-const species=['moth','fox','frog','bird','bunny','otter','sprite'];
-const names=['Mori','Pip','Nori','Juniper','Tavi','Mallow','Clover','Miso','Poe','Luma','Wren','Kiko'];
-const colors=['rose','mint','gold','lavender','sky','peach'];
-const activities={
- fold:{name:'Fold the Paper',icon:'▱',reward:2},
- frame:{name:'Shape the Frame',icon:'⌁',reward:2},
- tie:{name:'Tie the Frame',icon:'⌘',reward:2},
- wick:{name:'Set the Wick',icon:'✧',reward:2},
- paint:{name:'Paint a Pattern',icon:'✎',reward:3},
- message:{name:'Write a Message',icon:'✉',reward:3},
- light:{name:'Light the Lantern',icon:'🔥',reward:4}
-};
+const names=['Momo','Pip','Nix','Bram','Lumi','Toto','Moss','Peb','Wisp','Clover','Puddle','Jun','Tansy','Fig','Rue','Bibi','Mallow','Soot','Pico','Nori','Dumpling','Fern'];
+const likes=['berries','warm tea','stars','mushrooms','rain','bells','maps','smooth stones','music','moonlight','tiny cakes'];
+const bodies=['moth','fox','frog','bird','otter','bean','cat','bat','bunny','mushroom'];
+const temper=['shy','curious','sleepy','silly','brave','thoughtful','gentle','restless'];
+function creature(seed){const r=rand(seed);return{id:'f'+Math.abs(hash(seed)).toString(36),seed,name:pick(r,names),body:pick(r,bodies),hue:Math.floor(r()*360),size:.85+r()*.3,ears:pick(r,['none','round','leaf','long','horn']),eyes:pick(r,['dot','wide','sleep','spark']),mark:pick(r,['plain','spot','stripe','star','moon']),temperament:pick(r,temper),like:pick(r,likes),home:pick(r,['mosswood','pond','village']),bond:0,trust:0,met:0,position:{x:10+r()*80,y:15+r()*70},mood:pick(r,['content','curious','sleepy','excited'])}}
+function hash(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return h>>>0}
+function addFriend(c){if(S.friends.some(f=>f.id===c.id))return S.friends.find(f=>f.id===c.id);S.friends.push(c);S.stats.friend++;return c}
+function friend(id){return S.friends.find(f=>f.id===id)}
+function gain(light=1,coins=0,skill){S.light+=light;S.coins+=coins;if(skill)S.skills[skill]=(S.skills[skill]||0)+1;S.energy=Math.min(S.maxEnergy,S.energy+0);touchQuest(skill);save()}
+function touchQuest(type,n=1){const q=S.quests.daily;if(!q)return;if((q.id==='wander'&&type==='wander')||(q.id==='tend'&&type==='tend')||(q.id==='friend'&&type==='connect')||(q.id==='craft'&&type==='craft')||(q.id==='play'&&type==='play'))q.done=Math.min(q.goal,q.done+n);if(q.done>=q.goal&&!q.claimed){q.claimed=true;S.light+=q.reward;S.coins+=q.reward}}
+function spendEnergy(n=1){if(S.energy<n)return false;S.energy-=n;return true}
+function spendCost(cost){for(const [k,v] of Object.entries(cost))if((S.inventory[k]||0)<v)return false;for(const [k,v] of Object.entries(cost))S.inventory[k]-=v;return true}
+function canArea(id){const a=areas.find(x=>x.id===id);return a&&S.light>=a.need}
+function wander(areaId){if(!spendEnergy(1))return {error:'tired'};S.stats.wander++;touchQuest('wander');const area=areas.find(a=>a.id===areaId)||areas[1];const r=rand(`${S.day}|${area.id}|${S.stats.wander}|${S.light}|${S.weather}`);const roll=r();let type=roll<.27?'creature':roll<.47?'gather':roll<.63?'mini':roll<.79?'view':roll<.9?'choice':'cache';let out={area,type};
+if(type==='creature'){const c=creature(`${S.day}-${area.id}-${S.stats.wander}`);const old=friend(c.id);if(old){old.met++;old.position=c.position;old.mood=c.mood;old.trust=Math.min(5,old.trust+1);out.friend=old;out.new=false}else{out.creature=c;out.new=true}}
+if(type==='gather'){const table=area.kind==='water'?['fish','stone','herb','berry']:['wood','herb','stone','seed'];const item=pick(r,table);const qty=1+rInt(r,2);S.inventory[item]=(S.inventory[item]||0)+qty;out.item=item;out.qty=qty;gain(2,1,'care');S.stats.harvest+=1}
+if(type==='cache'){const item=pick(r,['star','thread','tea','berry','seed']);const qty=1;S.inventory[item]=(S.inventory[item]||0)+qty;out.item=item;out.qty=qty;gain(3,2,'meaning')}
+if(type==='view'){out.view=pick(r,['a moonlit snail the size of a teacup','fireflies arranging themselves into a crooked constellation','rain making tiny rings in a puddle','a fox-shaped cloud that refuses to become anything else','mushrooms glowing under the roots','a perfect warm patch of moss']) ;gain(2,0,'ground')}
+if(type==='choice'){out.choice=pick(r,[{q:'A shortcut is washed out. What now?',a:[['Take the long way','restore'],['Repair a little crossing','care'],['Explore somewhere else','flex']]},{q:'A tiny creature is carrying something too large.',a:[['Help it','connect'],['Watch how it solves it','ground'],['Offer a different route','flex']]},{q:'You find a note with no name.',a:[['Leave it where it is','care'],['Read it','meaning'],['Carry it to the market','connect']]}])}
+if(type==='mini')out.mini=pick(r,['firefly','pond','lantern','sorting']);gain(1,0,'flex');save();return out}
+function rInt(r,n){return 1+Math.floor(r()*n)}
+function resolveChoice(skill){gain(4,3,skill);S.stats.play++;touchQuest('play');return true}
+function playMini(kind,result){let reward=kind==='firefly'?5:kind==='pond'?6:kind==='lantern'?5:4;gain(reward,2,kind==='sorting'?'meaning':'flex');S.stats.play++;touchQuest('play');return reward}
+function friendAction(id,action){const f=friend(id);if(!f)return null;let msg,skill='connect',coins=1;if(action==='sit'){f.bond++;f.trust=Math.min(5,f.trust+1);msg=`${f.name} settles beside you. The two of you watch the lantern.`;skill='ground'}
+if(action==='play'){f.bond+=2;f.trust=Math.min(5,f.trust+1);msg=`You invent a ridiculous game with ${f.name}. The rules are immediately forgotten.`;skill='flex'}
+if(action==='talk'){f.bond++;f.trust=Math.min(5,f.trust+1);msg=`${f.name} tells you about ${f.like}. You swap a small story.`;skill='connect'}
+if(action==='help'){f.trust=Math.min(5,f.trust+2);f.bond++;msg=`You help ${f.name} with a little problem. They look pleased.`;skill='care'}
+if(action==='gift'){const item=f.like==='berries'?'berry':f.like==='warm tea'?'tea':f.like==='stars'?'star':'herb';if((S.inventory[item]||0)<1)return{error:`You don't have a ${item} yet.`};S.inventory[item]--;f.bond+=2;msg=`${f.name} accepts the ${item}. Their whole face brightens.`;skill='meaning'}
+f.met++;gain(2,coins,skill);touchQuest('connect');return{f,msg}}
+function tend(thing){if(thing==='garden'){if(!spendCost({seed:1}))return{error:'You need a seed.'};S.home.plants.push({stage:0,day:S.day});S.home.garden++;gain(3,2,'care');return{msg:'You tuck a seed into the soil. Tomorrow is allowed to be tomorrow.'}}
+if(thing==='water'){if(!S.home.plants.length)return{error:'Nothing needs watering yet.'};S.home.plants.forEach(p=>p.stage=Math.min(3,p.stage+1));gain(3,2,'care');return{msg:'The garden drinks. A few leaves uncurl.'}}
+if(thing==='lantern'){if(!spendCost({herb:1,stone:1}))return{error:'You need one herb and one stone.'};S.home.lantern++;gain(4,2,'ground');return{msg:'You polish the lantern and replace a tiny worn part. The light settles.'}}
+if(thing==='clean'){S.home.clean=3;gain(2,2,'restore');return{msg:'A few minutes of sweeping makes the little place feel like yours again.'}}
+if(thing==='sit'){gain(1,0,'ground');return{msg:'You sit. Nothing is required of you for a moment.'}}
+}
+function craft(item){const recipes={tea:{cost:{herb:1,berry:1},out:{tea:1},msg:'A fragrant cup of berry tea.'},lanternCharm:{cost:{thread:1,star:1},out:{decor:1},msg:'A tiny star charm for the lantern.'},seedPacket:{cost:{berry:1,herb:1},out:{seed:3},msg:'Three saved seeds for another day.'},stoneBench:{cost:{stone:3,wood:2},out:{bench:1},msg:'A sturdy little bench.'}};const rec=recipes[item];if(!rec||!spendCost(rec.cost))return{error:'Not enough materials.'};for(const [k,v] of Object.entries(rec.out)){if(k==='decor')S.home.decor.push('star');else if(k==='bench')S.home.bench++;else S.inventory[k]=(S.inventory[k]||0)+v}S.stats.craft++;gain(5,3,'care');touchQuest('craft');return{msg:rec.msg}}
+function harvest(){const ready=S.home.plants.filter(p=>p.stage>=3);if(!ready.length)return{error:'Nothing is ready yet.'};S.home.plants=S.home.plants.filter(p=>p.stage<3);S.inventory.berry+=ready.length;S.inventory.seed+=ready.length;gain(4,3,'meaning');return{msg:`You harvest ${ready.length} little bundle${ready.length>1?'s':''} of berries and seeds.`}}
+// Lantern workshop — deliberately additive to the v5 game model.
+const lanternSteps=[
+{id:'fold',label:'Fold the paper',material:'paper',need:'paper',desc:'Make the first careful folds. The shape starts to remember what it wants to become.'},
+{id:'frame',label:'Shape the frame',material:'bamboo',need:'bamboo',desc:'Bend the little frame into a light, open shape.'},
+{id:'tie',label:'Tie it together',material:'thread',need:'thread',desc:'A few small knots hold everything together.'},
+{id:'wick',label:'Set the wick',material:'wax',need:'wax',desc:'Give the flame somewhere safe to live.'},
+{id:'paint',label:'Choose a pattern',material:'ink',need:'ink',desc:'Add a small mark that makes this lantern yours.'},
+{id:'message',label:'Write a message',material:null,need:null,desc:'A few words for the sky. They can be about a person, a feeling, a wish, or nothing in particular.'},
+{id:'light',label:'Light the lantern',material:null,need:null,desc:'When it is ready, give it a little light.'}
+];
+const lanternMessages=[
+'I remember you.',
+'Thank you for being here.',
+'I will carry this with me.',
+'You mattered. You still matter.',
+'For the things I want to keep.',
+'For tonight, this is enough.',
+'I can miss you and keep going.',
+'Wherever the night takes this, let it be gentle.'
+];
+function lanternState(){if(!S.lantern)S.lantern=defaults().lantern;return S.lantern}
+function lanternStep(id){const L=lanternState(),idx=lanternSteps.findIndex(x=>x.id===id);if(idx!==L.step)return{error:'Finish the current step first.'};const st=lanternSteps[idx];if(st.material){if((L[st.need]||0)<1)return{error:`You need one more ${st.need}.`};L[st.need]--;L.step++;save();return{ok:true,msg:idx===0?'The paper takes shape.':idx===1?'The frame is light and springy.':idx===2?'The knots hold.':idx===3?'The wick is ready.':'The pattern gives the paper a little personality.'}}if(id==='message'){if(!L.message.trim())return{error:'Write a message first.'};L.step++;save();return{ok:true,msg:'The words are tucked inside.'}}if(id==='light'){if(!L.message.trim())return{error:'Write a message before lighting it.'};L.lit=true;L.step=lanternSteps.length;save();return{ok:true,msg:'The lantern glows. It is ready for the sky.'}}return{error:'That step is not available.'}}
+function lanternSetPattern(pattern,color){const L=lanternState();L.pattern=['moon','stars','leaves','dots'].includes(pattern)?pattern:'moon';L.color=['gold','mint','plum','silver'].includes(color)?color:'gold';save();return true}
+function lanternSetMessage(text){const L=lanternState();L.message=String(text||'').slice(0,240);save();return L.message}
+function launchLantern(){const L=lanternState();if(L.step<lanternSteps.length||!L.lit)return{error:'Finish and light the lantern first.'};const msg=L.message.trim();if(!msg)return{error:'The lantern needs a message.'};L.flights++;L.lastLaunch={t:Date.now(),message:msg,pattern:L.pattern,color:L.color,flight:L.flights};L.messages.unshift(L.lastLaunch);L.messages=L.messages.slice(0,30);L.message='';L.lit=false;L.step=0;L.paper=Math.min(3,L.paper+1);L.bamboo=Math.min(3,L.bamboo+1);L.thread=Math.min(2,L.thread+1);L.wax=Math.min(2,L.wax+1);L.ink=Math.min(2,L.ink+1);S.light+=12;S.coins+=4;S.skills.meaning=(S.skills.meaning||0)+1;save();return{ok:true,flight:L.lastLaunch}}
+function lanternGather(){const L=lanternState();const found=['paper','bamboo','thread','wax','ink'];const idx=(S.stats.wander+S.day+L.flights)%found.length;const item=found[idx];const cap={paper:3,bamboo:3,thread:2,wax:2,ink:2}[item];L[item]=Math.min(cap,L[item]+1);save();return{item,qty:1}}
 
-function fresh(){return {day:1,light:0,materials:{paper:3,bamboo:2,thread:2,wax:2,ink:1,herb:2},coins:8,lanterns:[],current:null,sky:[],friends:[],discovered:[],quests:[],home:{plants:2,tidy:3},stats:{crafted:0,flown:0,explored:0,kind:0,returned:0},scene:'home',muse:{connected:false,quality:0,steadiness:.5},settings:{sound:true}}}
-function load(){try{return Object.assign(fresh(),JSON.parse(localStorage.getItem(KEY)||'{}'),{materials:Object.assign(fresh().materials,(JSON.parse(localStorage.getItem(KEY)||'{}').materials||{}))})}catch{return fresh()}}
-function save(){localStorage.setItem(KEY,JSON.stringify(S));}
-function esc(x){return String(x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function rand(n){let x=Math.sin((S.day*999+S.stats.explored*31+n*17+seed0)*12.9898)*43758.5453;return x-Math.floor(x)}
-function has(o){return Object.entries(o).every(([k,v])=>(S.materials[k]||0)>=v)}
-function take(o){for(const [k,v] of Object.entries(o))S.materials[k]-=v}
-function gain(o){for(const [k,v] of Object.entries(o))S.materials[k]=(S.materials[k]||0)+v}
-function note(msg){clearTimeout(toastTimer);let e=document.querySelector('.toast');if(!e){e=document.createElement('div');e.className='toast';document.body.append(e)}e.textContent=msg;e.classList.add('show');toastTimer=setTimeout(()=>e.classList.remove('show'),2600)}
-function render(){
- app.innerHTML=`<header class="top"><button class="brand" onclick="go('home')"><span class="brandlamp">🏮</span><span><b>Lantern</b><small>The Long Night</small></span></button><div class="resources"><span>✦ ${S.light}</span><span>🪵 ${S.materials.bamboo}</span><span>📜 ${S.materials.paper}</span><span>🧵 ${S.materials.thread}</span></div><button class="menu" onclick="go('journal')">☰</button></header><main id="main"></main><nav class="bottom"><button onclick="go('home')">⌂<small>Home</small></button><button onclick="go(\'workshop\')">🏮<small>Make</small></button><button onclick="go('wander')">✦<small>Wander</small></button><button onclick="go('sky')">☾<small>Sky</small></button><button onclick="go('friends')">♡<small>Friends</small></button><button onclick="go('play')">✦<small>Play</small></button></nav>`;
- const m=document.getElementById('main');
- if(S.scene==='home')home(m); else if(S.scene==='workshop')workshop(m); else if(S.scene==='message')message(m); else if(S.scene==='launch')launch(m); else if(S.scene==='wander')wander(m); else if(S.scene==='friends')friends(m); else if(S.scene==='sky')sky(m); else if(S.scene==='journal')journal(m); else if(S.scene==='meditate')meditate(m); else if(S.scene==='play')play(m);
-}
-function shell(title,kicker,body){return `<section class="screen"><div class="kicker">${kicker}</div><h1>${title}</h1>${body}</section>`}
-function home(m){
- const need=10+S.stats.flown*3;
- m.innerHTML=shell('A little light, made by hand.','DAY '+S.day+' · '+(S.stats.flown?'YOUR SKY IS GROWING':'THE WORKSHOP IS WAITING'),`<div class="hero"><div class="heroart"><div class="moon"></div><div class="tree"></div><div class="tinyflames">${S.sky.slice(-8).map((x,i)=>`<i style="--i:${i}"></i>`).join('')}</div><div class="ground"></div></div><div class="heroCopy"><p>There is paper on the table, a warm wick, and a whole night ahead.</p><button class="primary big" onclick="go(\'workshop\')">Make tonight's lantern <span>→</span></button><button class="ghost" onclick="go('wander')">Take a slow walk first</button></div></div>
- <div class="daily"><div><span class="eyebrow">TONIGHT'S LITTLE AIM</span><b>${questText()}</b></div><button onclick="dailyQuest()">${S.quests.includes(S.day)?'✓ Done':'Go'}</button></div>
- <div class="tiles"><button onclick="go(\'workshop\')"><span>🏮</span><b>Workshop</b><small>Build something real</small></button><button onclick="go('wander')"><span>✦</span><b>Wander</b><small>Find materials & friends</small></button><button onclick="go('sky')"><span>☾</span><b>Your Sky</b><small>${S.sky.length} lanterns released</small></button><button onclick="go('friends')"><span>♡</span><b>Friends</b><small>${S.friends.length} little lives nearby</small></button></div>
- <div class="zenbar"><span>☁</span><div><b>Nothing here needs to be rushed.</b><small>Stopping, wandering, making, and returning all count.</small></div><button onclick="go('meditate')">Quiet minute</button></div>`)
-}
-function questText(){const q=['Find something blue in the meadow.','Make a lantern with a hand-painted pattern.','Meet a creature and learn its favorite thing.','Gather three different materials.','Send a lantern into the night.','Visit somewhere you have not been today.'];return q[(S.day-1)%q.length]}
-function dailyQuest(){if(S.quests.includes(S.day)){note('Tonight’s little aim is already complete.');return}let t=questText();if(t.includes('Make')&&S.stats.crafted>S.day-1){finishQuest()}else if(t.includes('Send')&&S.stats.flown>S.day-1){finishQuest()}else{note(t);go(t.includes('Meet')?'friends':t.includes('Send')?'workshop':t.includes('Gather')?'wander':'wander')}}
-function finishQuest(){if(!S.quests.includes(S.day)){S.quests.push(S.day);S.light+=5;S.coins+=3;save();note('Little aim complete. +5 light, +3 mooncoins');render()}}
-function workshop(m){
- if(!S.current)S.current={step:0,pattern:'moon',message:'',color:'gold'};
- const c=S.current, steps=['fold','frame','tie','wick','paint','message','light'];
- const labels=['Paper','Frame','Thread','Wick','Pattern','Message','Light'];
- let cards=steps.map((id,i)=>{let done=c.step>i;return `<div class="step ${done?'done':''} ${c.step===i?'active':''}"><span>${done?'✓':i+1}</span><small>${labels[i]}</small></div>`}).join('');
- m.innerHTML=shell('The Lantern Workshop','MAKE SOMETHING YOU CAN SEND AWAY',`<div class="workbench"><div class="lanternPreview ${c.color||'gold'} ${c.step>=6?'lit':''}"><div class="lanternTop"></div><div class="lanternBody"><div class="pattern">${pattern(c.pattern)}</div><div class="messagePreview">${esc(c.message||'')}</div></div><div class="flame"></div></div><div class="steps">${cards}</div><div class="actionCard">${workAction(c,steps[c.step])}</div></div><div class="materialStrip"><span>📜 Paper ${S.materials.paper}</span><span>🎋 Bamboo ${S.materials.bamboo}</span><span>🧵 Thread ${S.materials.thread}</span><span>🕯 Wax ${S.materials.wax}</span><span>✎ Ink ${S.materials.ink}</span></div>`)
-}
-function workAction(c,id){
- if(c.step>=7)return `<h2>This one is ready.</h2><p>It has a paper body, a frame, a wick, a pattern, and words tucked safely inside.</p><button class="primary big" onclick="go('launch')">Take it outside →</button>`;
- if(id==='message')return `<h2>Give it words.</h2><p>One word is enough. A sentence is enough. You can also leave it blank.</p><textarea id="msg" maxlength="120" placeholder="A word to carry, thank, set down, or wish…">${esc(c.message)}</textarea><div class="chips">${['Carry','Thank','Set down','Wish'].map((x,i)=>`<button onclick="prefill(${i})">${x}</button>`).join('')}</div><button class="primary" onclick="setMessage()">Fold the message inside →</button>`;
- if(id==='paint')return `<h2>Make it yours.</h2><p>Choose a pattern. The lantern remembers it when it becomes a star.</p><div class="patternChoices">${['moon','stars','waves','leaves'].map(x=>`<button class="patternChoice ${c.pattern===x?'sel':''}" onclick="pickPattern('${x}')">${pattern(x)}</button>`).join('')}</div><div class="colorChoices">${colors.map(x=>`<button class="dot ${x} ${c.color===x?'sel':''}" onclick="pickColor('${x}')"></button>`).join('')}</div><button class="primary" onclick="advance('paint')">Keep the design →</button>`;
- const req={fold:{paper:1},frame:{bamboo:2},tie:{thread:1},wick:{wax:1},light:{}}[id]||{};
- const verb={fold:'Fold the paper',frame:'Shape the bamboo',tie:'Tie the corners',wick:'Set the warm wick',light:'Light it'}[id];
- return `<h2>${verb}.</h2><p>${id==='fold'?'Press and drag the folds into place.':id==='frame'?'Fit the frame around the paper body.':id==='tie'?'A few careful knots keep everything together.':id==='wick'?'The little flame will be ready when you are.':'When the moment feels right, strike the match.'}</p><div class="tactile" onclick="advance('${id}')"><div class="gesture">${id==='fold'?'↙  ↘':id==='frame'?'◜  ◝':id==='tie'?'⌁  ⌁':id==='wick'?'✧':'🔥'}</div><span>tap / press to ${id==='light'?'light':'work'}</span></div><button class="primary" onclick="advance('${id}')">${id==='light'?'Light lantern':'Continue'} →</button>`
-}
-function advance(id){const c=S.current;const req={fold:{paper:1},frame:{bamboo:2},tie:{thread:1},wick:{wax:1},paint:{ink:1},light:{}}[id]||{};if(!has(req)){note('You need '+Object.entries(req).map(([k,v])=>v+' '+k).join(', '));return}take(req);c.step++;S.light+=(activities[id]?.reward||2);if(id==='light'){S.stats.crafted++;c.step=7}save();render();if(id==='light')setTimeout(()=>go('launch'),300)}
-function setMessage(){S.current.message=document.getElementById('msg').value.trim();S.current.step++;S.light+=3;save();render()}
-function prefill(i){const vals=['I can carry this gently.','Thank you for what was here.','I do not have to hold everything tonight.','May something kind find its way forward.'];document.getElementById('msg').value=vals[i]}
-function pickPattern(x){S.current.pattern=x;render()} function pickColor(x){S.current.color=x;render()}
-function pattern(x){return {moon:'☾',stars:'✦ · ✧',waves:'〰〰',leaves:'❧ ❧'}[x]||'✦'}
-function launch(m){
- const c=S.current||{};m.innerHTML=shell('The Launching Field','WHEN YOU ARE READY',`<div class="launchScene" id="launchScene"><div class="starsBg"></div><div class="launchLantern ${c.color||'gold'}"><div class="lanternTop"></div><div class="lanternBody"><div>${pattern(c.pattern)}</div></div><div class="flame"></div></div><div class="launchGround"></div></div><div class="launchControls"><p>${c.message?`Inside: <em>“${esc(c.message)}”</em>`:'There are no required words inside. Just light.'}</p><button class="primary big" onclick="sendLantern()">Release the lantern ↑</button><button class="ghost" onclick="go(\'workshop\')">Not yet</button></div>`)
-}
-function sendLantern(){const c=S.current||{};const id=S.stats.flown+1;S.sky.push({id,message:c.message||'',pattern:c.pattern,color:c.color,day:S.day});S.stats.flown++;S.light+=10;S.coins+=4;S.current=null;save();const scene=document.getElementById('launchScene');scene.classList.add('rising');setTimeout(()=>{S.day++;save();note('Your lantern is a new light in the sky.');render();},4200)}
-function wander(m){
- const unlocked=areas.filter(a=>a.need<=S.stats.flown);m.innerHTML=shell('Wander under the night','THE WORLD IS SMALL, BUT IT IS NOT EMPTY',`<div class="areaGrid">${areas.map(a=>`<button class="area ${a.need>S.stats.flown?'locked':''}" ${a.need>S.stats.flown?'disabled':''} onclick="explore('${a.id}')"><span class="areaIcon">${a.icon}</span><b>${a.name}</b><small>${a.need>S.stats.flown?'Unlocks after '+a.need+' lanterns':a.desc}</small></button>`).join('')}</div><div class="wanderNote"><b>Tonight's walking rule:</b> you do not have to accomplish anything. You can go somewhere just because you like being there.</div>`)
-}
-function explore(id){const a=areas.find(x=>x.id===id);S.stats.explored++;let roll=Math.floor(rand(S.stats.explored)*6);let msg,actions=[];
- if(roll===0){gain({paper:1,herb:1});msg='A loose sheet and a bundle of herbs were tucked beneath a fern.';actions=['Gather them'];}
- else if(roll===1){gain({bamboo:2});msg='A fallen bamboo stalk is just the right size for a lantern frame.';actions=['Take the bamboo'];}
- else if(roll===2){S.coins+=2;msg='You found two mooncoins glinting beside the path.';actions=['Pocket them'];}
- else if(roll===3){meetCreature(id);msg='Something small is watching from behind the grass.';actions=['Meet the creature'];}
- else if(roll===4){S.materials.thread++;msg='A spool of colored thread is caught on an old branch.';actions=['Free the thread'];}
- else {S.light+=2;msg='You stopped long enough for the fireflies to gather around you.';actions=['Stay a moment'];}
- save();m.innerHTML=shell(a.name,a.icon+' · EXPLORATION',`<div class="sceneCard"><div class="sceneIllustration ${id}"><span>${a.icon}</span></div><h2>${msg}</h2><p>${a.desc}</p><button class="primary" onclick="render()">${actions[0]} ✓</button><button class="ghost" onclick="go('wander')">Keep walking</button></div>`)}
-function meetCreature(area){let f=S.friends.find(x=>x.area===area)||null;if(!f){let idx=S.friends.length;f={id:idx+1,name:names[idx%names.length],species:species[idx%species.length],color:colors[idx%colors.length],area,temper:['curious','shy','bold','sleepy','playful'][idx%5],favorite:['herbs','stars','music','tea','thread'][idx%5],bond:0,seen:0};S.friends.push(f)}f.seen++;f.bond++;save()}
-function creatureSVG(f){return `<div class="creature ${f.color}"><div class="ear e1"></div><div class="ear e2"></div><div class="body"></div><div class="eye a"></div><div class="eye b"></div><div class="mouth"></div><div class="tail"></div></div>`}
-function friends(m){m.innerHTML=shell('Little lives nearby','FRIENDS YOU HAVE ACTUALLY MET',`${S.friends.length?`<div class="friendGrid">${S.friends.map(f=>`<article class="friend"><div class="friendArt">${creatureSVG(f)}</div><div class="friendInfo"><h2>${f.name}</h2><span>${f.species} · ${f.temper}</span><p>${f.name} likes <b>${f.favorite}</b> and tends to appear around the ${areaName(f.area)}.</p><div class="bond"><i style="width:${Math.min(100,20+f.bond*8)}%"></i></div><small>Bond ${f.bond}</small><div class="friendBtns"><button onclick="friendAct(${f.id},'sit')">Sit together</button><button onclick="friendAct(${f.id},'play')">Play</button><button onclick="friendAct(${f.id},'gift')">Gift</button></div></div></article>`).join('')}</div>`:`<div class="empty"><div>🐾</div><h2>Someone is out there.</h2><p>Walk the meadow, grove, or pond. The night is full of tiny lives that don't show up on a checklist.</p><button class="primary" onclick="go('wander')">Go looking →</button></div>`}<div class="companionTip">Friends don't need to be collected. You can meet the same one again and simply spend time together.</div>`)}
-function areaName(id){return areas.find(a=>a.id===id)?.name||'night'}
-function friendAct(id,type){let f=S.friends.find(x=>x.id===id);if(!f)return;f.bond++;S.stats.kind++;if(type==='play')S.light+=2;if(type==='gift'){if((S.materials[f.favorite]||0)>0){S.materials[f.favorite]--;S.coins+=3;note(f.name+' loved that.')}else{note(f.name+' seems happy you thought of them.')}}else if(type==='sit'){S.light+=1;note(f.name+' stayed beside you.')}else{S.light+=2;note('You and '+f.name+' played until the lanterns came on.')}save();render()}
-function sky(m){
- const lights=S.sky.map((x,i)=>'<button class="skyLantern '+esc(x.color||'gold')+'" style="--x:'+((8+(i*37)%84))+'%;--y:'+((18+(i*29)%68))+'%" onclick="skyDetail('+i+')">🏮</button>').join('');
- const empty='<div class="empty"><div>☾</div><h2>The sky is waiting.</h2><p>Your first lantern will leave a mark here.</p><button class="primary" onclick="go(\'workshop\')">Make one →</button></div>';
- const caption='<p class="skyCaption">Some nights you can see them immediately. Some nights you have to look for the faintest ones.</p>';
- m.innerHTML=shell('Your Sky','EVERY LIGHT YOU SENT IS STILL PART OF THE NIGHT','<div class="bigSky"><div class="skyMoon"></div>'+lights+'</div><div class="skyStats"><div><b>'+S.sky.length+'</b><small>lights released</small></div><div><b>'+S.sky.filter(x=>x.message).length+'</b><small>messages carried</small></div><div><b>'+new Set(S.sky.map(x=>x.pattern)).size+'</b><small>patterns made</small></div></div>'+(S.sky.length?caption:empty));
-}
-function skyDetail(i){const x=S.sky[i];note(x.message?'“'+x.message+'” · Day '+x.day:'A quiet lantern · Day '+x.day)}
-function play(m){
- const games=[
-  {id:'firefly',icon:'✦',name:'Firefly Catch',desc:'Follow a drifting light with your finger. Catch three without chasing it.',reward:3},
-  {id:'wind',icon:'〰',name:'Hold the Flame',desc:'Keep the little flame inside the calm circle while the night breeze moves it.',reward:4},
-  {id:'pattern',icon:'✧',name:'Lantern Pattern',desc:'Remember the order of three lights, then tap them back.',reward:5}
- ];
- m.innerHTML=shell('Little Games','SHORT THINGS TO DO BETWEEN LANTERNS',`<div class="gameGrid">${games.map(g=>`<button class="gameCard" onclick="startGame('${g.id}')"><span>${g.icon}</span><b>${g.name}</b><small>${g.desc}</small><em>+${g.reward} light</em></button>`).join('')}</div><div class="zenbar"><span>☁</span><div><b>Play is allowed to be pointless.</b><small>You can make a lantern afterward, or simply wander away.</small></div></div>`)
-}
-let mini=null;
-function startGame(id){
- if(id==='firefly')fireflyGame(); else if(id==='wind')windGame(); else patternGame();
-}
-function fireflyGame(){let n=0,good=0;const loop=()=>{if(n>=3){S.light+=good*3;save();note(good?`You caught ${good} fireflies. +${good*3} light`:'The fireflies got away.');go('play');return}open(`<h2>✦ Firefly Catch</h2><p>Wait for it… then tap the glow.</p><div class="miniStage"><button class="fireflyDot" style="left:${12+Math.random()*76}%;top:${18+Math.random()*62}%" onclick="catchFirefly()">✦</button></div><p class="muted">${n+1} of 3</p>`);mini={kind:'firefly',advance:()=>{n++;good++ ;close();setTimeout(loop,120)}}};loop()}
-function catchFirefly(){if(mini?.kind==='firefly'){mini.advance();mini=null}}
-function windGame(){let score=0,t=12;open(`<h2>〰 Hold the Flame</h2><p>Tap when the flame is inside the ring. The breeze keeps changing.</p><div class="miniStage"><div class="ring"></div><button class="miniFlame" onclick="flameTap()">🔥</button></div><p id="miniCount">12 seconds · 0 catches</p>`);mini={kind:'wind',score,t};let timer=setInterval(()=>{if(!mini||mini.kind!=='wind'){clearInterval(timer);return}mini.t--;let e=document.querySelector('.miniFlame');if(e)e.style.transform=`translate(calc(-50% + ${(Math.random()*90-45)}px),calc(-50% + ${(Math.random()*90-45)}px))`;let c=document.getElementById('miniCount');if(c)c.textContent=`${mini.t} seconds · ${mini.score} catches`;if(mini.t<=0){clearInterval(timer);S.light+=mini.score*2;save();const sc=mini.score;mini=null;close();toast(`The flame held. +${sc*2} light`);go('play')}},1000)}
-function flameTap(){if(!mini||mini.kind!=='wind')return;const e=document.querySelector('.miniFlame');if(!e)return;const r=document.querySelector('.ring').getBoundingClientRect(),b=e.getBoundingClientRect();const dx=(b.left+b.width/2)-(r.left+r.width/2),dy=(b.top+b.height/2)-(r.top+r.height/2);if(Math.hypot(dx,dy)<55)mini.score++}
-function patternGame(){const seq=[Math.floor(Math.random()*3),Math.floor(Math.random()*3),Math.floor(Math.random()*3)];let shown=0,player=[];open(`<h2>✧ Lantern Pattern</h2><p id="patternPrompt">Watch the lights.</p><div class="patternBoard">${['✦','☾','✧'].map((x,i)=>`<button onclick="patternTap(${i})">${x}</button>`).join('')}</div>`);mini={kind:'pattern',seq,shown,player};let timer=setInterval(()=>{if(!mini||mini.kind!=='pattern'){clearInterval(timer);return}mini.shown++;const p=document.getElementById('patternPrompt');if(p)p.textContent=mini.shown<4?`Remember light ${mini.shown} of 3…`: 'Your turn.';if(mini.shown>=4){clearInterval(timer);mini.ready=true}},650)}
-function patternTap(i){if(!mini||mini.kind!=='pattern'||!mini.ready)return;mini.player.push(i);if(i!==mini.seq[mini.player.length-1]){const seq=mini.seq;mini=null;close();toast('The pattern slipped away.');return}if(mini.player.length===mini.seq.length){S.light+=5;save();mini=null;close();toast('Pattern remembered. +5 light');go('play')}}
-function journal(m){m.innerHTML=shell('Notebook','YOUR LOCAL LITTLE RECORD',`<div class="notebook"><h2>What the night has become</h2><div class="statsList"><p>Lanterns made <b>${S.stats.crafted}</b></p><p>Lanterns released <b>${S.stats.flown}</b></p><p>Friends met <b>${S.friends.length}</b></p><p>Places explored <b>${S.stats.explored}</b></p><p>Kind moments <b>${S.stats.kind}</b></p></div><hr><button class="secondary" onclick="exportSave()">Export my local save</button><label class="secondary file">Import save<input type="file" accept="application/json" onchange="importSave(event)"></label><button class="danger" onclick="resetGame()">Start over</button></div><div class="about"><b>About the design</b><p>The world is fictional. The mechanics quietly emphasize noticing, returning, connection, meaning, gentle action, and making room for ordinary life. Nothing here diagnoses you or asks you to uncover hidden memories.</p></div>`)}
-function meditate(m){m.innerHTML=shell('Quiet Flight','MUSE 2 · OPTIONAL',`<div class="medCard"><div class="medOrb"><div class="medLantern">🏮</div></div><h2 id="medTitle">Let the lantern drift.</h2><p id="medText">Connect Muse if you want the light to respond to your steadiness. You can also simply watch it.</p><div class="signal"><span>Muse</span><b>${S.muse.connected?'connected':'not connected'}</b><i style="width:${Math.round(S.muse.quality*100)}%"></i></div><div class="medBtns"><button class="primary" onclick="medStart()">Begin 5 minutes</button><button class="ghost" onclick="museDemo()">Muse test / simulate</button></div></div>`)}
-let medTimer=null;function medStart(){let t=300;const title=document.getElementById('medTitle'),txt=document.getElementById('medText');clearInterval(medTimer);medTimer=setInterval(()=>{t--;let min=Math.floor(t/60),sec=String(t%60).padStart(2,'0');title.textContent=min+':'+sec;txt.textContent=t>240?'Notice the light.':t>150?'If attention wanders, let it come back.':t>60?'There is nothing to fix right now.': 'Watch the lantern until the last minute becomes quiet.';if(t<=0){clearInterval(medTimer);title.textContent='The lantern is still here.';txt.textContent='You can return to the night whenever you want.'}},1000)}
-function museDemo(){S.muse.connected=!S.muse.connected;S.muse.quality=S.muse.connected?.86:0;save();note(S.muse.connected?'Muse signal connected.':'Muse disconnected.');render()}
-function exportSave(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='lantern-save.json';a.click();URL.revokeObjectURL(a.href)}
-function importSave(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{S=Object.assign(fresh(),JSON.parse(r.result));save();render();note('Save imported.')}catch{note('That save file could not be read.')}};r.readAsText(f)}
-function resetGame(){if(confirm('Start a new night? Your current local save will be erased.')){S=fresh();save();render()}}
-function go(scene){S.scene=scene;save();render();window.scrollTo(0,0)}
-window.go=go;window.advance=advance;window.setMessage=setMessage;window.prefill=prefill;window.pickPattern=pickPattern;window.pickColor=pickColor;window.sendLantern=sendLantern;window.explore=explore;window.friendAct=friendAct;window.skyDetail=skyDetail;window.dailyQuest=dailyQuest;window.exportSave=exportSave;window.importSave=importSave;window.resetGame=resetGame;window.medStart=medStart;window.museDemo=museDemo;window.startGame=startGame;window.catchFirefly=catchFirefly;window.flameTap=flameTap;window.patternTap=patternTap;
-render();
+function reset(){S=defaults();save()}
+function exportSave(){return JSON.stringify(S,null,2)}
+function importSave(text){try{const x=JSON.parse(text);if(x.version!==5)throw 0;S=x;save();return true}catch{return false}}
+function museFrame(x){Object.assign(S.muse,{quality:clamp(x.quality),steadiness:clamp(x.steadiness),motion:clamp(x.motion),alpha:+x.band?.alpha||0,beta:+x.band?.beta||0,battery:x.battery??S.muse.battery,last:Date.now()});save()}
+function clamp(x){return Math.max(0,Math.min(1,Number(x)||0))}
+function start(){boot();S.stats.plays++;save()}
+return{S,areas,wander,resolveChoice,playMini,friend,addFriend,friendAction,tend,craft,harvest,canArea,gain,spendCost,museFrame,exportSave,importSave,reset,start,save,creature,KEY,lanternSteps,lanternMessages,lanternState,lanternStep,lanternSetPattern,lanternSetMessage,launchLantern,lanternGather};
 })();

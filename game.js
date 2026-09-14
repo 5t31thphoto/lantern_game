@@ -1,40 +1,67 @@
-/* Lantern 2 — local-first game engine. No network, no dependencies. */
+/* Lantern — The Long Night v5. Local-first game state. No network/runtime deps. */
 const Lantern=(()=>{
-const KEY='lanternGameV3';
-const defaults=()=>({version:3,light:0,coins:12,streak:0,lastDay:'',world:0,skill:{ground:0,flex:0,connect:0,meaning:0,care:0},inventory:[],friends:[],seen:[],journal:[],settings:{motion:true,sound:false,voice:false,muse:false},muse:{connected:false,quality:0,attention:0,steadiness:0,motion:0,alpha:0,beta:0,battery:null,last:0,sessionSeconds:0},stats:{plays:0,returnWins:0,explore:0,kind:0}});
+const KEY='lanternGameV5';
+const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const rand=(seed)=>{let h=2166136261; for(const c of seed){h^=c.charCodeAt(0);h=Math.imul(h,16777619)} return ()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}};
+const pick=(r,a)=>a[Math.floor(r()*a.length)];
+const defaults=()=>({version:5,day:1,lastDate:'',streak:0,light:12,coins:24,energy:5,maxEnergy:5,weather:0,inventory:{wood:4,stone:3,herb:2,seed:3,thread:1,star:0,berry:2,tea:1,fish:0},home:{garden:0,lantern:0,bench:0,pond:0,plants:[],decor:[],clean:3},friends:[],discoveries:[],journal:[],quests:{},skills:{ground:0,flex:0,connect:0,meaning:0,care:0,restore:0},stats:{wander:0,harvest:0,craft:0,play:0,friend:0,days:1,calmSessions:0},settings:{sound:false,motion:true,voice:false},muse:{connected:false,quality:0,steadiness:0,motion:0,alpha:0,beta:0,battery:null,last:0}});
 let S=load();
-function load(){try{const x=JSON.parse(localStorage.getItem(KEY));return x&&x.version===3?x:defaults()}catch(e){return defaults()}}
-function save(){localStorage.setItem(KEY,JSON.stringify(S));}
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY));return x&&x.version===5?x:defaults()}catch{return defaults()}}
+function save(){localStorage.setItem(KEY,JSON.stringify(S))}
 function today(){return new Date().toISOString().slice(0,10)}
-function boot(){if(S.lastDay!==today()){if(S.lastDay){let d=(Date.now()-new Date(S.lastDay).getTime())/86400000;S.streak=d<2?S.streak+1:1}else S.streak=1;S.lastDay=today();save()}}
-function rand(n){return Math.floor(Math.random()*n)}
-function seedHash(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
-function creature(seed){let h=seedHash(seed);const pick=a=>a[(h=Math.imul(h^h>>>13,1274126177)>>>0)%a.length];
- const names=['Pip','Momo','Nix','Bram','Lumi','Toto','Moss','Peb','Wisp','Clover','Puddle','Jun'];
- const bodies=['round','bean','moth','fox','frog','bird','blob']; const ears=['none','leaf','round','long','horn']; const eyes=['dot','wide','sleep','spark']; const marks=['plain','spot','stripe','star','moon'];
- return {id:seed,name:pick(names),body:pick(bodies),ears:pick(ears),eyes:pick(eyes),mark:pick(marks),hue:(h%360+360)%360,friendable:true};}
-function addLight(n,skill){S.light+=n;if(skill)S.skill[skill]=(S.skill[skill]||0)+1;save()}
-function reward(label,skill){addLight(3,skill);S.coins+=2;return {label,light:3,coins:2}}
-const rooms=[
- {id:'village',name:'Lantern Village',tag:'home',desc:'A tiny village under an enormous sky. The lights are small, but they are on.',unlocked:()=>true},
- {id:'mosswood',name:'Mosswood',tag:'explore',desc:'Soft paths, strange mushrooms, and creatures that pretend not to be watching.',unlocked:()=>S.world>=1},
- {id:'moonpond',name:'Moonpond',tag:'steady',desc:'The water mirrors whatever the sky is doing. It never insists on one weather.',unlocked:()=>S.world>=2},
- {id:'echo',name:'Echo Forest',tag:'story',desc:'Here, sounds become little objects. Some are useful. Some are simply echoes.',unlocked:()=>S.world>=3},
- {id:'garden',name:'Keepsake Garden',tag:'meaning',desc:'Things that mattered can become seeds without being put away.',unlocked:()=>S.world>=4},
- {id:'nightmarket',name:'Night Market',tag:'connect',desc:'Nobody asks why you came. Someone always has a warm bowl or a ridiculous hat.',unlocked:()=>S.world>=5},
- {id:'dawn',name:'Dawn Hill',tag:'carry',desc:'The path home is still part of the path.',unlocked:()=>S.world>=6}
+function boot(){const d=today();if(S.lastDate!==d){if(S.lastDate){const gap=Math.floor((Date.now()-new Date(S.lastDate))/86400000);S.streak=gap<=1?S.streak+1:1}else S.streak=1;S.lastDate=d;S.day++;S.energy=S.maxEnergy;S.weather=(S.day*7)%5;dailyQuest();save()}}
+function dailyQuest(){const q=[['wander','Take a walk',2],['tend','Tend two things',2],['friend','Spend time with a friend',2],['craft','Make something',2],['play','Play a little game',2]][(S.day-1)%5];S.quests.daily={id:q[0],label:q[1],goal:q[2],done:0,reward:6}}
+const areas=[
+{id:'home',name:'Your Little House',need:0,kind:'home',desc:'A warm corner of the world. Tend it, decorate it, or simply sit with the lantern.'},
+{id:'mosswood',name:'Mosswood',need:0,kind:'wild',desc:'Soft paths, mushrooms, fireflies and creatures with excellent hiding places.'},
+{id:'moonpond',name:'Moonpond',need:35,kind:'water',desc:'A silver pond with fish, stepping stones and small games.'},
+{id:'nightmarket',name:'Night Market',need:70,kind:'market',desc:'Tiny stalls, odd trades, recipes and friends looking for something.'},
+{id:'echo',name:'Echo Forest',need:115,kind:'echo',desc:'The forest remembers sounds. Follow an echo, sort a thought, or simply listen.'},
+{id:'garden',name:'Keepsake Garden',need:165,kind:'garden',desc:'Plant what you want to keep alive: a value, a memory, a recipe, a joke.'},
+{id:'dawnhill',name:'Dawn Hill',need:230,kind:'summit',desc:'A quiet overlook. Nothing here needs fixing.'}
 ];
-function unlockIf(){const thresholds=[0,8,18,30,44,60,80];for(let i=1;i<thresholds.length;i++)if(S.light>=thresholds[i])S.world=Math.max(S.world,i);save()}
-const games={
- weather(){const opts=[['😶','numb'],['💧','sad'],['🔥','angry'],['🌱','tender'],['⚡','restless'],['🌤️','calm']];let target=opts[rand(opts.length)];return {type:'weather',title:'Weather Catch',prompt:'Catch the weather before it changes.',target,opts:opts.sort(()=>Math.random()-.5)}},
- return(){return {type:'return',title:'Come Back',prompt:'The lantern drifts away. Bring it back by finding the ordinary things that are still here.',items:['warmth','water','sound','ground','light','company'].sort(()=>Math.random()-.5)}},
- echo(){return {type:'echo',title:'Echo Sorting',prompt:'An echo can be a fact, a feeling, or a story. Sort one gently.',cards:[['The room is quieter.','fact'],['I miss them.','feeling'],['Nothing will ever feel right again.','story'],['I wish I had said more.','feeling'],['Tomorrow still exists.','fact'],['I should have known.','story']]}}
-};
-function explore(){S.stats.explore++;const c=creature(Date.now().toString()+Math.random());let found=Math.random()<.65;if(found&&!S.inventory.find(x=>x.id===c.id))S.inventory.push(c);if(Math.random()<.24&&!S.friends.find(x=>x.id===c.id)){S.friends.push(c);S.stats.kind++}addLight(1,'connect');save();return {creature:c,found,friend:S.friends.some(x=>x.id===c.id)}}
-function journal(text){if(!text.trim())return false;S.journal.unshift({t:Date.now(),text:text.trim()});S.journal=S.journal.slice(0,60);save();return true}
+const names=['Momo','Pip','Nix','Bram','Lumi','Toto','Moss','Peb','Wisp','Clover','Puddle','Jun','Tansy','Fig','Rue','Bibi','Mallow','Soot','Pico','Nori','Dumpling','Fern'];
+const likes=['berries','warm tea','stars','mushrooms','rain','bells','maps','smooth stones','music','moonlight','tiny cakes'];
+const bodies=['moth','fox','frog','bird','otter','bean','cat','bat','bunny','mushroom'];
+const temper=['shy','curious','sleepy','silly','brave','thoughtful','gentle','restless'];
+function creature(seed){const r=rand(seed);return{id:'f'+Math.abs(hash(seed)).toString(36),seed,name:pick(r,names),body:pick(r,bodies),hue:Math.floor(r()*360),size:.85+r()*.3,ears:pick(r,['none','round','leaf','long','horn']),eyes:pick(r,['dot','wide','sleep','spark']),mark:pick(r,['plain','spot','stripe','star','moon']),temperament:pick(r,temper),like:pick(r,likes),home:pick(r,['mosswood','pond','village']),bond:0,trust:0,met:0,position:{x:10+r()*80,y:15+r()*70},mood:pick(r,['content','curious','sleepy','excited'])}}
+function hash(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return h>>>0}
+function addFriend(c){if(S.friends.some(f=>f.id===c.id))return S.friends.find(f=>f.id===c.id);S.friends.push(c);S.stats.friend++;return c}
+function friend(id){return S.friends.find(f=>f.id===id)}
+function gain(light=1,coins=0,skill){S.light+=light;S.coins+=coins;if(skill)S.skills[skill]=(S.skills[skill]||0)+1;S.energy=Math.min(S.maxEnergy,S.energy+0);touchQuest(skill);save()}
+function touchQuest(type,n=1){const q=S.quests.daily;if(!q)return;if((q.id==='wander'&&type==='wander')||(q.id==='tend'&&type==='tend')||(q.id==='friend'&&type==='connect')||(q.id==='craft'&&type==='craft')||(q.id==='play'&&type==='play'))q.done=Math.min(q.goal,q.done+n);if(q.done>=q.goal&&!q.claimed){q.claimed=true;S.light+=q.reward;S.coins+=q.reward}}
+function spendEnergy(n=1){if(S.energy<n)return false;S.energy-=n;return true}
+function spendCost(cost){for(const [k,v] of Object.entries(cost))if((S.inventory[k]||0)<v)return false;for(const [k,v] of Object.entries(cost))S.inventory[k]-=v;return true}
+function canArea(id){const a=areas.find(x=>x.id===id);return a&&S.light>=a.need}
+function wander(areaId){if(!spendEnergy(1))return {error:'tired'};S.stats.wander++;touchQuest('wander');const area=areas.find(a=>a.id===areaId)||areas[1];const r=rand(`${S.day}|${area.id}|${S.stats.wander}|${S.light}|${S.weather}`);const roll=r();let type=roll<.27?'creature':roll<.47?'gather':roll<.63?'mini':roll<.79?'view':roll<.9?'choice':'cache';let out={area,type};
+if(type==='creature'){const c=creature(`${S.day}-${area.id}-${S.stats.wander}`);const old=friend(c.id);if(old){old.met++;old.position=c.position;old.mood=c.mood;old.trust=Math.min(5,old.trust+1);out.friend=old;out.new=false}else{out.creature=c;out.new=true}}
+if(type==='gather'){const table=area.kind==='water'?['fish','stone','herb','berry']:['wood','herb','stone','seed'];const item=pick(r,table);const qty=1+rInt(r,2);S.inventory[item]=(S.inventory[item]||0)+qty;out.item=item;out.qty=qty;gain(2,1,'care');S.stats.harvest+=1}
+if(type==='cache'){const item=pick(r,['star','thread','tea','berry','seed']);const qty=1;S.inventory[item]=(S.inventory[item]||0)+qty;out.item=item;out.qty=qty;gain(3,2,'meaning')}
+if(type==='view'){out.view=pick(r,['a moonlit snail the size of a teacup','fireflies arranging themselves into a crooked constellation','rain making tiny rings in a puddle','a fox-shaped cloud that refuses to become anything else','mushrooms glowing under the roots','a perfect warm patch of moss']) ;gain(2,0,'ground')}
+if(type==='choice'){out.choice=pick(r,[{q:'A shortcut is washed out. What now?',a:[['Take the long way','restore'],['Repair a little crossing','care'],['Explore somewhere else','flex']]},{q:'A tiny creature is carrying something too large.',a:[['Help it','connect'],['Watch how it solves it','ground'],['Offer a different route','flex']]},{q:'You find a note with no name.',a:[['Leave it where it is','care'],['Read it','meaning'],['Carry it to the market','connect']]}])}
+if(type==='mini')out.mini=pick(r,['firefly','pond','lantern','sorting']);gain(1,0,'flex');save();return out}
+function rInt(r,n){return 1+Math.floor(r()*n)}
+function resolveChoice(skill){gain(4,3,skill);S.stats.play++;touchQuest('play');return true}
+function playMini(kind,result){let reward=kind==='firefly'?5:kind==='pond'?6:kind==='lantern'?5:4;gain(reward,2,kind==='sorting'?'meaning':'flex');S.stats.play++;touchQuest('play');return reward}
+function friendAction(id,action){const f=friend(id);if(!f)return null;let msg,skill='connect',coins=1;if(action==='sit'){f.bond++;f.trust=Math.min(5,f.trust+1);msg=`${f.name} settles beside you. The two of you watch the lantern.`;skill='ground'}
+if(action==='play'){f.bond+=2;f.trust=Math.min(5,f.trust+1);msg=`You invent a ridiculous game with ${f.name}. The rules are immediately forgotten.`;skill='flex'}
+if(action==='talk'){f.bond++;f.trust=Math.min(5,f.trust+1);msg=`${f.name} tells you about ${f.like}. You swap a small story.`;skill='connect'}
+if(action==='help'){f.trust=Math.min(5,f.trust+2);f.bond++;msg=`You help ${f.name} with a little problem. They look pleased.`;skill='care'}
+if(action==='gift'){const item=f.like==='berries'?'berry':f.like==='warm tea'?'tea':f.like==='stars'?'star':'herb';if((S.inventory[item]||0)<1)return{error:`You don't have a ${item} yet.`};S.inventory[item]--;f.bond+=2;msg=`${f.name} accepts the ${item}. Their whole face brightens.`;skill='meaning'}
+f.met++;gain(2,coins,skill);touchQuest('connect');return{f,msg}}
+function tend(thing){if(thing==='garden'){if(!spendCost({seed:1}))return{error:'You need a seed.'};S.home.plants.push({stage:0,day:S.day});S.home.garden++;gain(3,2,'care');return{msg:'You tuck a seed into the soil. Tomorrow is allowed to be tomorrow.'}}
+if(thing==='water'){if(!S.home.plants.length)return{error:'Nothing needs watering yet.'};S.home.plants.forEach(p=>p.stage=Math.min(3,p.stage+1));gain(3,2,'care');return{msg:'The garden drinks. A few leaves uncurl.'}}
+if(thing==='lantern'){if(!spendCost({herb:1,stone:1}))return{error:'You need one herb and one stone.'};S.home.lantern++;gain(4,2,'ground');return{msg:'You polish the lantern and replace a tiny worn part. The light settles.'}}
+if(thing==='clean'){S.home.clean=3;gain(2,2,'restore');return{msg:'A few minutes of sweeping makes the little place feel like yours again.'}}
+if(thing==='sit'){gain(1,0,'ground');return{msg:'You sit. Nothing is required of you for a moment.'}}
+}
+function craft(item){const recipes={tea:{cost:{herb:1,berry:1},out:{tea:1},msg:'A fragrant cup of berry tea.'},lanternCharm:{cost:{thread:1,star:1},out:{decor:1},msg:'A tiny star charm for the lantern.'},seedPacket:{cost:{berry:1,herb:1},out:{seed:3},msg:'Three saved seeds for another day.'},stoneBench:{cost:{stone:3,wood:2},out:{bench:1},msg:'A sturdy little bench.'}};const rec=recipes[item];if(!rec||!spendCost(rec.cost))return{error:'Not enough materials.'};for(const [k,v] of Object.entries(rec.out)){if(k==='decor')S.home.decor.push('star');else if(k==='bench')S.home.bench++;else S.inventory[k]=(S.inventory[k]||0)+v}S.stats.craft++;gain(5,3,'care');touchQuest('craft');return{msg:rec.msg}}
+function harvest(){const ready=S.home.plants.filter(p=>p.stage>=3);if(!ready.length)return{error:'Nothing is ready yet.'};S.home.plants=S.home.plants.filter(p=>p.stage<3);S.inventory.berry+=ready.length;S.inventory.seed+=ready.length;gain(4,3,'meaning');return{msg:`You harvest ${ready.length} little bundle${ready.length>1?'s':''} of berries and seeds.`}}
+function reset(){S=defaults();save()}
 function exportSave(){return JSON.stringify(S,null,2)}
-function importSave(text){try{let x=JSON.parse(text);if(x.version!==3)throw Error();S=x;save();return true}catch(e){return false}}
-function museFrame(x){S.muse.quality=Math.max(0,Math.min(1,x.quality??0));S.muse.attention=Math.max(0,Math.min(1,x.attention??0));S.muse.steadiness=Math.max(0,Math.min(1,x.steadiness??0));S.muse.motion=Math.max(0,Math.min(1,x.motion??0));S.muse.alpha=Number(x.band?.alpha||0);S.muse.beta=Number(x.band?.beta||0);S.muse.battery=x.battery??S.muse.battery;S.muse.last=Date.now();S.muse.last=S.muse.last}
+function importSave(text){try{const x=JSON.parse(text);if(x.version!==5)throw 0;S=x;save();return true}catch{return false}}
+function museFrame(x){Object.assign(S.muse,{quality:clamp(x.quality),steadiness:clamp(x.steadiness),motion:clamp(x.motion),alpha:+x.band?.alpha||0,beta:+x.band?.beta||0,battery:x.battery??S.muse.battery,last:Date.now()});save()}
+function clamp(x){return Math.max(0,Math.min(1,Number(x)||0))}
 function start(){boot();S.stats.plays++;save()}
-return {S,rooms,games,creature,reward,unlockIf,explore,journal,exportSave,importSave,museFrame,save,start,KEY};
+return{S,areas,wander,resolveChoice,playMini,friend,addFriend,friendAction,tend,craft,harvest,canArea,gain,spendCost,museFrame,exportSave,importSave,reset,start,save,creature,KEY};
 })();

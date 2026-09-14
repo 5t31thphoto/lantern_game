@@ -1,32 +1,32 @@
 # Lantern — The Long Night
 
-A local-first, game-first therapeutic game prototype designed for GitHub Pages.
+A cozy, local-first browser game designed for GitHub Pages and touch devices.
 
-## Runtime rules
+## Run
 
-- Static HTML/CSS/JavaScript at runtime.
-- No runtime API, account, database, CDN, analytics, cloud save, or remote service.
-- Progress and notebook entries remain in browser storage unless the player explicitly exports a save.
-- Procedural creature sprites are generated in the browser from deterministic seeds.
-- Muse 2 connects directly from supported browsers through Web Bluetooth. EEG, movement and battery data are processed locally in the page.
-- The game remains completely playable without Muse.
+Open `index.html` locally or publish the folder as a static GitHub Pages site. No build step is required.
+
+## Rules
+
+- No backend, account, analytics, CDN, cloud save, runtime package, or external asset dependency.
+- Game state and notebook remain in browser `localStorage`.
+- Save export/import is local JSON.
+- Procedural creatures are generated as inline SVG from deterministic seeds.
+- Touch and pointer controls are the primary interaction model.
+- GitHub Actions is intentionally NOT included yet. If a future build pipeline becomes useful, put its YAML in the repository root and move it on GitHub to `.github/workflows/<name>.yml`.
 
 ## Muse 2
 
-The Muse layer is deliberately an interaction layer, not a diagnostic system. Signal quality, movement and a conservative steadiness trend can influence visual feedback and the guided Lantern Meditation. The game never presents EEG as a measurement of grief, mental health, or a diagnosis.
+`muse.js` contains the optional Web Bluetooth bridge. The game remains fully playable without it. Browser Web Bluetooth support and Muse firmware behavior should be tested on the target Android/Windows hardware. Muse data is processed in-browser and is not uploaded anywhere.
 
-The browser path is intended for HTTPS GitHub Pages with Chrome/Edge on Android or Windows. Web Bluetooth is not available in Safari/iOS.
+The game uses Muse for subtle feedback such as lantern glow/stability and meditation visualization. It does not interpret EEG as a diagnosis or an objective measure of emotion.
 
-## Lantern Meditation
+## Design
 
-The dedicated meditation page provides 3/5/10/20 minute sessions. It can run timer-only or with Muse feedback. The lantern responds subtly to the live signal; optional spoken guidance uses the browser's local Speech Synthesis API, and the background tone is generated locally with Web Audio.
+The visible game loop is:
 
-## GitHub Actions
+**wander → discover → gather → play → befriend → tend home → craft → unlock → return**
 
-The repository includes `.github/workflows/deploy.yml`. CI validates the JavaScript and assembles the static site before deploying it through GitHub Pages. Build-time tooling may be installed by GitHub's runner; the published runtime remains self-contained.
+The deeper layer quietly reinforces grounding, flexible attention, restoration, connection, meaning, care, and returning after attention wanders. It is not presented as a counseling session.
 
-GitHub Pages supports public repositories on GitHub Free and supports custom GitHub Actions workflows for building/deploying static sites.
-
-## Important boundary
-
-This is a game prototype, not clinically validated treatment. It deliberately avoids diagnosis, recovered-memory mechanics, autonomous trauma exposure, or interpreting EEG as an emotional truth. Before real therapeutic deployment, clinician review, accessibility testing, privacy review, safety/escalation design, and testing with intended users are required.
+For a real therapeutic deployment, this prototype still needs clinical review, accessibility testing, privacy review, and testing with intended players.
